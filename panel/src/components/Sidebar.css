@@ -1,0 +1,121 @@
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-xl);
+  padding: 28px 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pad-xl);
+}
+.simulate { align-self: stretch; }
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  height: 48px;
+  padding: 0 var(--pad-md);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-medium);
+  font: 400 15px var(--font);
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+.nav-item:hover:not(:disabled) { background: var(--surface-hover); }
+
+/* O item ativo do Asaas é um pill azul-claro com texto azul. */
+.nav-item.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+}
+
+.nav-item:disabled {
+  color: var(--text-soft);
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.nav-icon {
+  width: 24px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 16px;
+  color: var(--text-medium);
+}
+.nav-item.active .nav-icon { color: var(--primary); }
+.nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+/* O contador vermelho — no Asaas ele fica sobre o ícone. */
+.nav-badge {
+  position: absolute;
+  left: 30px;
+  top: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--danger-strong);
+  border: .5px solid var(--danger-soft);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+/**
+ * A fronteira. Tudo abaixo desta linha NÃO existe no Asaas — e a tela precisa
+ * dizer isso sem que ninguém tenha que ler a documentação.
+ */
+.sim-section {
+  margin-top: auto;
+  padding-top: var(--pad-md);
+  border-top: 1px dashed var(--border);
+}
+
+.sim-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--pad-md) var(--pad-xs);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.sim-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-medium);
+  font-size: 9px;
+  cursor: help;
+}

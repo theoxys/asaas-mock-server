@@ -10,7 +10,10 @@ COPY . .
 # O codegen roda no build, offline: lê só a spec vendorizada. O endpoint da spec
 # do Asaas responde 429 com facilidade — buscar durante o build tornaria a
 # imagem irreprodutível.
-RUN bun run codegen && bunx tsc --noEmit
+# O painel compila para UM arquivo (`src/admin/ui.html`) e o runtime volta a ser só
+# Bun servindo esse arquivo — sem rota de estáticos, sem cache-busting, sem uma segunda
+# coisa que pode 404 dentro do container. Este stage some depois do COPY lá embaixo.
+RUN bun run codegen && bunx tsc --noEmit && bun run panel:check && bun run panel:build
 
 FROM oven/bun:1-alpine AS runtime
 WORKDIR /app

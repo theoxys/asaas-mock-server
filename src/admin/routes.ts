@@ -170,6 +170,21 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       )
 
       /**
+       * "Situação das cobranças" — o agregado da home, por CONTA.
+       *
+       * Recebe o accountId em vez de deduzir da chave porque o painel troca de
+       * conta sem trocar de sessão: é a única tela do mundo que enxerga o master e
+       * as subcontas ao mesmo tempo, e é justamente assim que se vê o dinheiro de
+       * um split andar de uma para a outra.
+       */
+      .get('/summary', async ({ query }) => {
+        const { paymentsSummary } = await import('./summary.ts')
+        const accountId = String(query.accountId ?? '')
+        if (!accountId) throw badRequest('invalid_accountId', 'Informe accountId.')
+        return { groups: await paymentsSummary(ctx, accountId) }
+      })
+
+      /**
        * Por que a fila de cada webhook não está andando.
        *
        * No Asaas você olha o painel e vê que travou. Aqui, até agora, você só

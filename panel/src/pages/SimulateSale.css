@@ -1,0 +1,105 @@
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 45%);
+}
+
+.modal {
+  position: fixed;
+  z-index: 21;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 25%);
+}
+
+.modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pad-xl) var(--pad-xl) 0;
+}
+.modal header h2 { font-size: 20px; }
+
+.modal-x {
+  border: 0;
+  background: transparent;
+  color: var(--text-medium);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+}
+.modal-x:hover { background: var(--surface-hover); }
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-md);
+  padding: var(--pad-xl);
+}
+.modal-body p { margin: 0; line-height: 1.6; }
+
+.modal-body label { display: flex; flex-direction: column; gap: 6px; }
+.modal-body label > span:first-child {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-medium);
+}
+
+.modal-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  padding: var(--pad-sm) var(--pad-md);
+  background: var(--surface-soft);
+  border-radius: var(--radius-input);
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--pad-sm);
+  margin-top: var(--pad-xs);
+}
+
+/* ── inputs (Atlas: 40px de altura, raio 12) ──────────────────────────────── */
+.input {
+  height: 40px;
+  padding: 0 var(--pad-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  color: var(--text);
+  font: 400 14px var(--font);
+  flex: 1;
+  min-width: 0;
+}
+.input:focus-visible { border-color: var(--focus); }
+.input.pct { flex: 0 0 72px; text-align: right; }
+
+.chip {
+  height: 36px;
+  padding: 0 var(--pad-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-medium);
+  font: 600 13px var(--font);
+  cursor: pointer;
+}
+.chip:hover { background: var(--surface-hover); }
+.chip.on {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}

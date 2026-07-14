@@ -1,0 +1,129 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-2xl);
+  height: 80px;
+  flex-shrink: 0;
+  padding: 0 var(--pad-md);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.balance { display: flex; flex-direction: column; gap: 4px; }
+.balance-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-medium);
+}
+.balance-value {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--success-strong);
+}
+.balance-value.neg { color: var(--danger-strong); }
+
+.refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  height: 40px;
+  padding: 0 var(--pad-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-medium);
+  font: 600 14px var(--font);
+  cursor: pointer;
+}
+.refresh:hover:not(:disabled) { background: var(--surface-hover); }
+.refresh:disabled { cursor: default; }
+
+.spin { display: inline-block; animation: spin 700ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── seletor de conta ─────────────────────────────────────────────────────── */
+.acct-picker { margin-left: auto; position: relative; }
+
+.acct-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  min-width: 250px;
+  padding: var(--pad-xs) var(--pad-sm);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+  font: 600 14px var(--font);
+  cursor: pointer;
+}
+.acct-trigger:hover { background: var(--surface-soft); }
+
+.acct-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.acct-name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-caret { color: var(--text-medium); font-size: 14px; line-height: 1; }
+
+.acct-scrim { position: fixed; inset: 0; z-index: 10; }
+
+.acct-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 11;
+  width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.acct-group {
+  padding: var(--pad-xs) var(--pad-xs) 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.acct-option {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  width: 100%;
+  padding: var(--pad-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: 400 13px var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.acct-option:hover { background: var(--surface-hover); }
+.acct-option.active { background: var(--primary-soft); color: var(--primary-strong); }
+.acct-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-option-bal { font-variant-numeric: tabular-nums; color: var(--text-medium); }
+.acct-option-bal.neg { color: var(--danger-strong); }

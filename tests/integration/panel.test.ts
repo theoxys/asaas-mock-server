@@ -23,16 +23,52 @@ describe('painel', () => {
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/html')
+    expect(await res.text()).toContain('Asaas Mock')
+  })
 
-    const html = await res.text()
-    expect(html).toContain('Asaas Mock')
+  /**
+   * O PAINEL TEM QUE SER UM ARQUIVO SÓ. É a regressão que o build de front introduziu,
+   * e ela é silenciosa da pior forma.
+   *
+   * O servidor serve UM arquivo: `src/admin/ui.html`. Não há rota de estáticos. Se
+   * alguém mexer no `vite.config.ts` e tirar o `viteSingleFile`, o Vite passa a emitir
+   * `<script src="/assets/index-a1b2c3.js">` — que o servidor não conhece. O HTML
+   * continua respondendo 200, o teste acima continua passando, e o painel abre EM
+   * BRANCO no container de todo mundo.
+   */
+  it('é autocontido: nenhum asset externo, ou o painel abre em branco no container', async () => {
+    h = await createHarness()
+    const html = await (await get(h.app, '/')).text()
 
-    // O painel inteiro depende destas duas chamadas. Se o HTML deixar de fazê-las,
-    // a tela carrega vazia e ninguém percebe. (As URLs são montadas como
-    // `'/_admin' + path`, então é a CHAMADA que se procura aqui, não a rota
-    // literal — foi assim que este teste falhou da primeira vez.)
-    expect(html).toContain("admin('/accounts')")
-    expect(html).toContain("admin('/clock')")
+    // O JS e o CSS têm que estar INLINE.
+    expect(html).toContain('<script')
+    expect(html).not.toMatch(/<script[^>]+src=["']\/(assets|src)\//)
+    expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']\/(assets|src)\//)
+
+    // E o bundle tem que ter de fato entrado: um HTML com a casca e sem o app
+    // passaria nos asserts acima.
+    expect(html.length).toBeGreaterThan(20_000)
+  })
+
+  /**
+   * As rotas de que o painel VIVE. Se uma sumir, a tela carrega e fica vazia — sem
+   * erro no console do servidor, sem nada. É o tipo de quebra que só aparece quando
+   * alguém abre o painel, que pode ser semanas depois.
+   */
+  it('as rotas que o painel consome existem', async () => {
+    h = await createHarness()
+    const account = h.app.seed.accountId
+
+    for (const path of [
+      '/_admin/accounts',
+      '/_admin/clock',
+      '/_admin/test-cards',
+      '/_admin/webhooks/queue',
+      `/_admin/summary?accountId=${account}`,
+    ]) {
+      const res = await get(h.app, path)
+      expect(res.status, `${path} deveria responder 200`).toBe(200)
+    }
   })
 
   it('lista as contas com saldo e chave — inclusive as subcontas', async () => {

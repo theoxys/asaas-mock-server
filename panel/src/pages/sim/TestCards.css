@@ -1,0 +1,54 @@
+.card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-sm);
+}
+
+.test-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-sm);
+  padding: var(--pad-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-inner);
+}
+
+.test-card-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad-xs);
+}
+
+.test-card-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px var(--pad-sm);
+  align-items: center;
+  font-size: 13px;
+}
+.f-label { color: var(--text-medium); }
+.test-card-fields .copy { justify-self: start; }
+.test-card-fields .mono { font-weight: 600; }
+
+.test-card-err {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-medium);
+  padding-top: var(--pad-xs);
+  border-top: 1px solid var(--border-soft);
+}
+.test-card-err code { color: var(--danger-strong); }
+
+/* Aviso de que o número é extensão nossa: o Asaas real APROVARIA. */
+.test-card-warn {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--warn);
+  color: var(--warn-strong);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: help;
+}

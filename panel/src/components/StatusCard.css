@@ -1,0 +1,67 @@
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-md);
+  flex: 1;
+  min-width: 240px;
+  padding: var(--pad-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-inner);
+}
+
+/**
+ * Cada card carrega o seu tom nestas duas variáveis, e o resto da folha só as
+ * consome. É o que permite trocar a cor de "Vencidas" num lugar só, sem caçar
+ * `.stat.danger .stat-value` espalhado por seis seletores.
+ */
+.stat.success { --t: var(--success); --t-strong: var(--success-strong); --t-soft: var(--green-200); }
+.stat.primary { --t: var(--primary); --t-strong: var(--primary-strong); --t-soft: var(--blue-100); }
+.stat.warn    { --t: var(--warn);    --t-strong: var(--warn-strong);    --t-soft: var(--amber-200); }
+.stat.danger  { --t: var(--danger);  --t-strong: var(--danger-strong);  --t-soft: var(--red-200); }
+
+.stat-hdr h3 { font-size: 16px; color: var(--text); }
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--t);
+  font-variant-numeric: tabular-nums;
+}
+.stat-net {
+  margin-top: -12px;
+  font-size: 12px;
+  color: var(--text-medium);
+}
+
+.stat-bar {
+  display: flex;
+  height: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--t-soft);
+}
+.seg { height: 100%; }
+/* Quatro tons do mesmo matiz: mais escuro = maior fatia (a lista vem ordenada). */
+.seg.shade-0 { background: var(--t); }
+.seg.shade-1 { background: color-mix(in srgb, var(--t) 72%, var(--surface)); }
+.seg.shade-2 { background: color-mix(in srgb, var(--t) 48%, var(--surface)); }
+.seg.shade-3 { background: color-mix(in srgb, var(--t) 28%, var(--surface)); }
+.seg.empty-seg { width: 100%; background: var(--surface-soft); }
+
+.stat-links { display: flex; flex-direction: column; }
+.stat-links button {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  padding: 4px var(--pad-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--t-strong);
+  font: 500 12px var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.stat-links button:hover { background: var(--surface-soft); }
+.stat-links .grow { flex: 1; }

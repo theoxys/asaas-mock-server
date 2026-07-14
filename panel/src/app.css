@@ -1,0 +1,46 @@
+.shell { display: flex; min-height: 100vh; }
+
+main {
+  flex: 1;
+  min-width: 0; /* sem isto, uma tabela larga empurra a sidebar para fora da tela */
+  display: flex;
+  flex-direction: column;
+  background: var(--page);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-xl);
+  padding: var(--pad-2xl);
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  font-size: 14px;
+  color: var(--text-medium);
+}
+.crumb-current { color: var(--primary); }
+
+.content > h1 { font-size: 24px; margin-top: -12px; }
+
+/* A grade dos quatro cards de situação. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--pad-md);
+}
+
+/* Duas colunas lado a lado (cartões de teste + detalhe da conta). */
+.split-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: var(--pad-2xl);
+  align-items: start;
+}
+
+.stack { display: flex; flex-direction: column; gap: var(--pad-md); }
+.row { display: flex; align-items: center; gap: var(--pad-sm); flex-wrap: wrap; }
+.hint { font-size: 12px; color: var(--text-medium); line-height: 1.5; }

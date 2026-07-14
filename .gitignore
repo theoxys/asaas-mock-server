@@ -10,3 +10,8 @@ bun.lockb
 # nunca: tokens de sessão do Docker Hub gravados por engano
 undefined/
 *.jwt
+
+# O painel é COMPILADO (bun run panel:build). O dist é intermediário; o artefato
+# servido é src/admin/ui.html, e esse é versionado — sem ele, um clone sem `bun install`
+# subiria o servidor com o painel em branco.
+panel/dist/
