@@ -18,7 +18,8 @@
     "db:migrate": "bun src/db/migrate.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "release": "./tools/release.sh"
+    "release": "./tools/release.sh",
+    "hub:overview": "bun tools/hub-overview.ts"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.33",

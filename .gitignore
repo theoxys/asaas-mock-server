@@ -6,3 +6,7 @@ data/
 .env
 .DS_Store
 bun.lockb
+
+# nunca: tokens de sessão do Docker Hub gravados por engano
+undefined/
+*.jwt

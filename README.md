@@ -1,16 +1,16 @@
 # Asaas Mock Server
 
-Um **Asaas local**, em Docker. Simula o sandbox do Asaas com fidelidade de
-contrato e de comportamento — e, ao contrário do sandbox real, **entrega webhooks
-em `localhost`**.
+A **local Asaas**, in Docker. It simulates the Asaas sandbox with contract *and*
+behavioral fidelity — and, unlike the real sandbox, it **delivers webhooks to
+`localhost`**.
 
 ```bash
 docker run -p 45445:45445 mpiresdev/asaas-mock-server
 ```
 
-## Usar em outro projeto
+## Use it in another project
 
-Não clone este repositório. Cole isto no `docker-compose.yml` da sua aplicação:
+Don't clone this repository. Paste this into your application's `docker-compose.yml`:
 
 ```yaml
 services:
@@ -19,27 +19,28 @@ services:
     ports:
       - '45445:45445'
     environment:
-      # Fixe a chave, senão ela muda a cada `docker compose down -v` e o .env da
-      # sua aplicação para de bater.
+      # Pin the key, otherwise it changes on every `docker compose down -v` and
+      # your application's .env stops matching.
       #
-      # O `$$` NÃO é erro de digitação: o compose interpola `$`, então um
-      # `$aact_...` viraria uma variável vazia e o container subiria com outra
-      # chave — sem erro nenhum, e você perderia a tarde. `$$` produz um `$`.
+      # The `$$` is NOT a typo: compose interpolates `$`, so a `$aact_...` would
+      # become an empty variable and the container would boot with a different
+      # key — with no error anywhere, and you'd lose the afternoon. `$$` yields
+      # a literal `$`.
       ASAAS_API_KEY: '$$aact_hmlg_local'
 
-      # A LINHA QUE FAZ ISTO FUNCIONAR. Dentro do container, "localhost" é o
-      # PRÓPRIO container: um webhook para http://localhost:3000 bateria nele
-      # mesmo. Aqui o host é reescrito e o evento chega na sua máquina.
+      # THE LINE THAT MAKES THIS WORK. Inside the container, "localhost" is the
+      # CONTAINER ITSELF: a webhook to http://localhost:3000 would hit the mock,
+      # not your app. This rewrites the host so the event reaches your machine.
       WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
 
-      # O tempo anda normal, mas você pode pular (POST /_admin/clock/advance).
-      # Sem isto, esperar o D+32 de um cartão leva 32 dias de verdade.
+      # Time flows normally, but you can skip ahead (POST /_admin/clock/advance).
+      # Without this, waiting for a card's D+32 takes 32 real days.
       CLOCK_MODE: VIRTUAL_FLOWING
     extra_hosts:
-      - 'host.docker.internal:host-gateway' # necessário no Linux
+      - 'host.docker.internal:host-gateway' # required on Linux
 ```
 
-E na sua aplicação, trocar de ambiente é trocar a URL base:
+And in your application, switching environments is switching the base URL:
 
 ```diff
 - ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3
@@ -47,234 +48,257 @@ E na sua aplicação, trocar de ambiente é trocar a URL base:
 + ASAAS_API_KEY=$aact_hmlg_local
 ```
 
-Se a *sua* aplicação também roda em Docker, na mesma rede do compose, o host dela
-para chegar aqui é o nome do serviço — `http://asaas:45445/v3`, não `localhost`.
+If *your* application also runs in Docker on the same compose network, its host
+for reaching this one is the service name — `http://asaas:45445/v3`, not
+`localhost`.
 
-**Em CI**, tire o `WEBHOOK_LOCALHOST_REWRITE` e o `extra_hosts` (os dois serviços
-já se enxergam pela rede do compose) e use `CLOCK_MODE=VIRTUAL_FROZEN`, que só
-anda quando você mandar — é o que torna o teste determinístico.
+**In CI**, drop `WEBHOOK_LOCALHOST_REWRITE` and `extra_hosts` (both services
+already see each other over the compose network) and use
+`CLOCK_MODE=VIRTUAL_FROZEN`, which only moves when you tell it to — that's what
+makes the test deterministic.
 
-## Desenvolver o próprio simulador
+## Develop the simulator itself
 
 ```bash
 git clone … && cd asaas-mock-server
-docker compose up      # compila o código local, não puxa do registry
+docker compose up      # builds the local code, doesn't pull from the registry
 ```
 
-## ⚠️ Leia isto antes de qualquer coisa
+## ⚠️ Read this before anything else
 
-Dentro do container, **`localhost` é o próprio container**. Um webhook apontado
-para `http://localhost:3000` bateria no simulador, não na sua aplicação.
+Inside the container, **`localhost` is the container itself**. A webhook pointed
+at `http://localhost:3000` would hit the simulator, not your application.
 
-Por isso, o `docker-compose.yml` já vem com:
+That's why the `docker-compose.yml` ships with:
 
 ```yaml
 environment:
   WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
 extra_hosts:
-  - 'host.docker.internal:host-gateway'   # faz funcionar no Linux também
+  - 'host.docker.internal:host-gateway'   # makes it work on Linux too
 ```
 
-O host de qualquer URL de webhook apontada para `localhost`/`127.0.0.1` é
-reescrito, e o evento chega na sua máquina. É a razão de este projeto existir.
-Se você desligar, saiba por quê.
+The host of any webhook URL pointing at `localhost`/`127.0.0.1` gets rewritten,
+and the event reaches your machine. This is the reason the project exists. If you
+turn it off, know why.
 
-## Por que não usar o sandbox do Asaas
+## Why not just use the Asaas sandbox
 
-O sandbox não entrega webhook em `localhost`. Isso obriga a ngrok, a subir um
-staging só pra testar, ou a forjar payload à mão — e nada disso testa o que
-importa: o prazo de crédito, o juro do atraso, o split, a retentativa do webhook.
+The sandbox doesn't deliver webhooks to `localhost`. That forces you into ngrok,
+into deploying a staging environment just to test, or into hand-forging payloads —
+and none of that tests what matters: the credit delay, the overdue interest, the
+split, the webhook retry.
 
-Além disso, aqui o tempo é seu:
+Also, here **time is yours**:
 
 ```bash
-# cria uma cobrança no cartão → ela fica CONFIRMED
-# o dinheiro só cai em D+32. No sandbox real, você espera 32 dias.
+# create a credit card payment → it sits at CONFIRMED
+# the money only lands at D+32. On the real sandbox, you wait 32 days.
 curl -X POST localhost:45445/_admin/clock/advance \
      -H 'content-type: application/json' -d '{"days": 32}'
-# → PAYMENT_RECEIVED chega no seu endpoint. Levou 40ms.
+# → PAYMENT_RECEIVED arrives at your endpoint. It took 40ms.
 ```
 
-## O que ele simula de verdade
+## What it actually simulates
 
-Não é um mock de respostas estáticas.
+This is not a mock of static responses.
 
-- **Máquina de estados por meio de pagamento.** Pix vai direto a `RECEIVED`
-  (pula `CONFIRMED`); boleto credita em D+1 útil; cartão de crédito em **D+32**;
-  débito em D+3. Vencido passa por `OVERDUE` antes.
-- **Dinheiro de verdade.** `netValue = value − taxa`. A taxa é debitada no
-  ledger. O extrato fecha com o saldo — há um invariante testado para isso.
-- **Juros e multa.** Multa uma vez no 1º dia de atraso; juros pro-rata die sobre
-  mês comercial de 30 dias.
-- **Split entre contas.** Cada API key é uma conta com `walletId` e saldo
-  próprios. O split move dinheiro e lança nos **dois** extratos.
-- **Webhooks como o Asaas faz.** Header `asaas-access-token`, **só HTTP 200 é
-  sucesso** (201 e 204 são falha — é a regra real), backoff de 15 tentativas,
-  `SEQUENTIALLY` com head-of-line blocking de verdade, `interrupted` no fim.
-- **Cartão de verdade.** Tokenização (o PAN nunca é gravado), cartões de teste,
-  pré-autorização e captura, chargeback. Parcelamento no cartão cobra o cartão.
-- **Recorrência.** A assinatura já gera a **primeira cobrança na criação** (e avança
-  o ciclo); as seguintes nascem 40 dias antes do vencimento. Parcelamento: a sobra
-  do arredondamento vai na **última** parcela, e no cartão cada parcela credita em
-  **D+32×n** — escalonada, não todas juntas. *(As três regras foram capturadas do
-  sandbox real; as três contrariam o que a documentação sugere.)*
-- **Pix que se paga.** `GET /v3/payments/{id}/pixQrCode` devolve um **BR Code EMV de
-  verdade** — com CRC16 — e o PNG do QR. Aponte a câmera: o celular lê. (O teste
-  decodifica a imagem de volta; um QR que só *parece* um QR não passa.)
-- **Onboarding de subconta.** Criar a subconta, listar os documentos pendentes do
-  KYC, enviar o arquivo (multipart), e aprovar — sem esperar análise humana.
-- **Cobertura da API inteira.** As 213 operações da spec oficial existem, com
-  autenticação, validação e formato de erro. **119 têm motor de negócio**; as
-  demais respondem `501` dizendo qual operação falta — nunca um dado falso.
+- **A state machine per billing type.** Pix goes straight to `RECEIVED` (skipping
+  `CONFIRMED`); boleto credits at D+1 business day; credit card at **D+32**; debit
+  at D+3. An unpaid one passes through `OVERDUE` first.
+- **Real money.** `netValue = value − fee`. The fee is debited in the ledger. The
+  statement reconciles with the balance — there's a tested invariant for that.
+- **Interest and late fees.** The fine is applied once, on the first day overdue;
+  interest is pro-rata die over a 30-day commercial month.
+- **Split across accounts.** Every API key is an account with its own `walletId`
+  and balance. A split moves money and posts entries to **both** statements.
+- **Webhooks the way Asaas does them.** `asaas-access-token` header, **only HTTP
+  200 counts as success** (201 and 204 are failures — that's the real rule),
+  15-attempt backoff, `SEQUENTIALLY` with genuine head-of-line blocking, and
+  `interrupted` at the end.
+- **Real card handling.** Tokenization (the PAN is never stored), test cards,
+  pre-authorization and capture, chargeback. Card installments charge the card.
+- **Recurrence.** A subscription generates its **first payment on creation** (and
+  advances the cycle); the rest are born 40 days before the due date. For
+  installments, the rounding remainder goes into the **last** one, and on a card
+  each installment credits at **D+32×n** — staggered, not all at once. *(All three
+  rules were captured from the real sandbox; all three contradict what the docs
+  suggest.)*
+- **Pix that actually pays.** `GET /v3/payments/{id}/pixQrCode` returns a **real
+  EMV BR Code** — with CRC16 — and the QR PNG. Point your camera at it: the phone
+  reads it. (The test decodes the image back; a QR that merely *looks* like a QR
+  doesn't pass.)
+- **Subaccount onboarding.** Create the subaccount, list the pending KYC
+  documents, upload the file (multipart), and approve it — no waiting for a human
+  reviewer.
+- **The whole API surface.** All 213 operations from the official spec exist, with
+  authentication, validation, and the Asaas error format. **119 have a business
+  engine**; the rest return `501` naming the missing operation — never fake data.
 
-## Painel
+## Dashboard
 
-Abra **`http://localhost:45445`**. Não é o painel do Asaas — é um painel do
-*simulador*, e mostra o que o Asaas não te deixa ver:
+Open **`http://localhost:45445`**. It's not the Asaas dashboard — it's the
+*simulator's* dashboard, and it shows what Asaas won't let you see:
 
-- **Todas as contas com saldo**, a principal e as subcontas, lado a lado. Cada uma
-  com o seu `walletId` e a sua **chave de API** (copiável) — algo que a API real
-  jamais devolveria, e que aqui é o ponto: é assim que você entra numa subconta.
-- **Criar subconta** num formulário. Ela nasce com carteira e chave próprias.
-- **Cobranças e extrato por conta.** Clique numa subconta e veja que ela é de fato
-  isolada: não enxerga as cobranças da conta-mãe, mas o crédito do split está lá.
-- **Viagem no tempo**: `+1 dia`, `+7`, `+32`. Confirme uma cobrança no cartão,
-  clique em `+32`, e veja o saldo entrar e o split cair na subconta — em
-  milissegundos. É a coisa que nenhuma suíte contra o Asaas real consegue fazer.
+- **Every account with its balance**, the main one and the subaccounts, side by
+  side. Each with its `walletId` and its **API key** (copyable) — something the
+  real API would never hand you, and which here is the whole point: it's how you
+  step into a subaccount.
+- **Create a subaccount** from a form. It's born with its own wallet and key.
+- **Payments and statement per account.** Click a subaccount and see that it's
+  genuinely isolated: it can't see the parent's payments, but the split credit is
+  there.
+- **Time travel**: `+1 day`, `+7`, `+32`. Confirm a card payment, click `+32`, and
+  watch the balance land and the split hit the subaccount — in milliseconds. This
+  is the thing no suite running against the real Asaas can do.
 
-O painel depende de `ADMIN_ENABLED` (ele lê as chaves de API de todas as contas).
-Os botões de tempo exigem um relógio virtual — o `docker-compose.yml` já sobe com
-`CLOCK_MODE=VIRTUAL_FLOWING` (o tempo anda normal, mas você pode pular). Em modo
-`REAL` eles aparecem desabilitados, dizendo por quê.
+The dashboard depends on `ADMIN_ENABLED` (it reads every account's API key). The
+time buttons need a virtual clock — the `docker-compose.yml` already boots with
+`CLOCK_MODE=VIRTUAL_FLOWING` (time flows normally, but you can skip). In `REAL`
+mode they render disabled, saying why.
 
-## Prove você mesmo
+## Prove it yourself
 
 ```bash
 bun run e2e
 ```
 
-Sobe o servidor, cria uma cobrança Pix por HTTP, confirma, e espera o
-`PAYMENT_RECEIVED` chegar num listener local. É a promessa inteira do projeto num
-comando. Rode também contra o container, que é onde a armadilha do `localhost`
-mora de verdade:
+It boots the server, creates a Pix payment over HTTP, confirms it, and waits for
+`PAYMENT_RECEIVED` to arrive at a local listener. That's the entire promise of the
+project in one command. Run it against the container too — that's where the
+`localhost` trap actually lives:
 
 ```bash
 docker compose up -d
 bun run e2e -- http://localhost:45445 "$(docker compose logs | grep 'API key' | sed 's/.*API key *//')"
 ```
 
-## Uso
+## Usage
 
-A API é a do Asaas. Trocar de ambiente é trocar a URL base:
+The API is the Asaas API. Switching environments is switching the base URL:
 
 ```
 https://api-sandbox.asaas.com/v3   →   http://localhost:45445/v3
 ```
 
-A chave de API vem do `.env` (`ASAAS_API_KEY`). Se você não definir uma, o
-servidor gera e **imprime no boot**.
+The API key comes from `.env` (`ASAAS_API_KEY`). If you don't set one, the server
+generates it and **prints it at boot**.
 
 ```bash
 curl localhost:45445/v3/customers \
   -H "access_token: $ASAAS_API_KEY" \
   -H 'content-type: application/json' \
-  -d '{"name":"Fulano","cpfCnpj":"24971563792"}'
+  -d '{"name":"Jane Doe","cpfCnpj":"24971563792"}'
 ```
 
-## Endpoints administrativos
+## Environment variables
 
-Não existem no Asaas. Ficam fora de `/v3` e não pedem `access_token`.
-Desligue com `ADMIN_ENABLED=false`.
+| | | |
+|---|---|---|
+| `PORT` | `45445` | HTTP port |
+| `ASAAS_API_KEY` | *generated and printed at boot* | the main account's key |
+| `WEBHOOK_LOCALHOST_REWRITE` | *(empty)* | host that replaces `localhost` in webhook URLs. **Use `host.docker.internal`.** |
+| `CLOCK_MODE` | `REAL` | `REAL` · `VIRTUAL_FLOWING` (flows, but you can skip) · `VIRTUAL_FROZEN` (only moves when you say so — use in CI) |
+| `ADMIN_ENABLED` | `true` | enables `/_admin/*` and the dashboard |
+| `DATABASE_PATH` | `/data/asaas.db` | mount a volume at `/data` to persist |
+| `TZ` | `America/Sao_Paulo` | |
+
+## Admin endpoints
+
+These don't exist in Asaas. They live outside `/v3` and take no `access_token`.
+Turn them off with `ADMIN_ENABLED=false`.
 
 | | |
 |---|---|
-| `GET /_admin/clock` | onde o relógio está |
-| `POST /_admin/clock/advance` | `{"days": 32}` — um tick completo por dia simulado |
+| `GET /_admin/clock` | where the clock is |
+| `POST /_admin/clock/advance` | `{"days": 32}` — one full tick per simulated day |
 | `POST /_admin/clock/set` | `{"date": "2026-08-01"}` |
-| `POST /_admin/tick` | roda os jobs sem mexer no relógio |
-| `GET /_admin/webhooks/deliveries` | log de tentativas, com status e corpo |
-| `POST /_admin/webhooks/pause` | congela o dispatcher (para viagem no tempo pura) |
-| `GET /_admin/coverage` | quantas operações têm motor de negócio |
-| `GET /_admin/fees` | tabela de taxas em vigor |
+| `POST /_admin/tick` | runs the jobs without moving the clock |
+| `GET /_admin/webhooks/deliveries` | attempt log, with status and body |
+| `POST /_admin/webhooks/pause` | freezes the dispatcher (for pure time travel) |
+| `GET /_admin/coverage` | how many operations have a business engine |
+| `GET /_admin/fees` | the fee table in effect |
 
-Para testar com tempo determinístico, suba com `CLOCK_MODE=VIRTUAL_FROZEN`: o
-relógio só anda quando você mandar.
+For deterministic time, boot with `CLOCK_MODE=VIRTUAL_FROZEN`: the clock only
+moves when you tell it to.
 
-## Desenvolvimento
+## Development
 
 ```bash
 bun install
-bun run codegen        # spec OpenAPI → TypeBox + manifesto das 213 operações
-bun run db:generate    # migrações a partir do schema Drizzle
+bun run codegen        # OpenAPI spec → TypeBox + a manifest of the 213 operations
+bun run db:generate    # migrations from the Drizzle schema
 bun run dev
 
 bun test
 bun run coverage:ops --by-tag
-bun run spec:diff      # o Asaas mudou a API?
+bun run spec:diff      # did Asaas change the API?
 ```
 
-Leia **`AGENTS.md`** antes de contribuir — há invariantes que não se negociam
-(domínio puro, nada de `Date.now()`, dinheiro em centavos).
-Estado do projeto e próximos passos: **`progress.md`**.
+Read **`AGENTS.md`** before contributing — there are non-negotiable invariants
+(pure domain, no `Date.now()`, money in integer cents).
+Project state and next steps: **`progress.md`**.
 
-## Fidelidade — provada, não prometida
+## Fidelity — proven, not promised
 
-As regras de negócio deste simulador foram **capturadas do sandbox real do Asaas** e
-são verificadas campo a campo por uma suíte de paridade:
+The business rules in this simulator were **captured from the real Asaas sandbox**
+and are verified field by field by a parity suite:
 
 ```bash
-bun run test:parity     # 7 roteiros · 0 divergências
+bun run test:parity     # 7 scenarios · 0 divergences
 ```
 
-`tools/capture.ts` roda os roteiros contra o Asaas de verdade e grava as respostas em
-`tests/golden/`. A suíte replica os mesmos roteiros contra o simulador e compara tudo
-o que não é legitimamente volátil: `value`, `netValue`, `status`, as datas (como
-offsets), a estrutura de `discount`/`fine`/`interest`, e até **o conjunto exato de
-chaves do objeto**.
+`tools/capture.ts` runs the scenarios against the real Asaas and records the
+responses in `tests/golden/`. The suite replays the same scenarios against the
+simulator and diffs everything that isn't legitimately volatile: `value`,
+`netValue`, `status`, the dates (as offsets), the shape of
+`discount`/`fine`/`interest`, and even **the exact set of keys on the object**.
 
-Isso não é decoração. A captura **derrubou 20 regras** que tínhamos deduzido da
-documentação — entre elas:
+This isn't decoration. The capture **knocked down 20 rules** we had deduced from
+the documentation — among them:
 
-- criar uma assinatura **cria a primeira cobrança na hora** (a doc sugere que não, e
-  nossa versão anterior não cobrava nada: o recurso estava quebrado);
-- a taxa do cartão parcelado sai do **total**, não de cada parcela — e a divisão
-  **trunca**: R$ 350 em 12x dá R$ 1,20 de taxa por parcela, não R$ 1,21. Nós
-  arredondávamos, e errávamos **um centavo por parcela**;
-- a parcela `n` credita em **D+32×n**, escalonada — não todas juntas;
-- o campo do desconto chama `limitDate`, e nós escrevíamos `limitedDate` — **a
-  validação de contrato nunca pegaria isso, porque a spec não declara o campo.**
+- creating a subscription **creates the first payment immediately** (the docs
+  suggest otherwise, and our previous version charged nothing at all: the feature
+  was broken);
+- the installment card fee comes off the **total**, not off each installment — and
+  the division **truncates**: R$ 350 in 12x is R$ 1.20 of fee per installment, not
+  R$ 1.21. We were rounding, and we were off by **one cent per installment**;
+- installment `n` credits at **D+32×n**, staggered — not all at once;
+- the discount field is called `limitDate`, and we were writing `limitedDate` —
+  **contract validation would never have caught that, because the spec doesn't
+  declare the field.**
 
-### Validado contra um cliente real
+### Validated against a real client
 
-As **26 chamadas** que uma aplicação real (PartiuRole) faz ao Asaas foram
-exercitadas contra o simulador e comparadas, **chave a chave**, com a resposta do
-sandbox. Isso encontrou seis buracos que a suíte de contrato não via — entre eles o
-QR Code do Pix, o parcelamento por `POST /v3/payments`, e pagar com um cartão já
-tokenizado (a spec exige o PAN; o Asaas real, não). Ver `progress.md`.
+The **26 calls** a real application (PartiuRole) makes to Asaas were exercised
+against the simulator and compared, **key by key**, with the sandbox's response.
+That found six holes the contract suite couldn't see — among them the Pix QR code,
+installments via `POST /v3/payments`, and paying with an already-tokenized card
+(the spec demands the PAN; the real Asaas doesn't). See `progress.md`.
 
-Para recapturar com a sua conta (precisa de uma chave de **sandbox**):
+To re-capture with your own account (requires a **sandbox** key):
 
 ```bash
 ASAAS_SANDBOX_API_KEY='$aact_hmlg_…' bun run capture
 bun run test:parity
 ```
 
-O script **recusa qualquer chave que não comece com `$aact_hmlg_`** — uma chave de
-produção criaria cobranças de verdade.
+The script **refuses any key that doesn't start with `$aact_hmlg_`** — a
+production key would create real charges.
 
-Toda divergência que a paridade apontar é um bug **nosso**: o Asaas é a verdade.
-Conserte o simulador, leve a regra provada para um golden test em `tests/unit/`, e
-registre em `progress.md`.
+Any divergence the parity suite reports is **our** bug: Asaas is the truth. Fix the
+simulator, carry the proven rule into a golden test in `tests/unit/`, and record it
+in `progress.md`.
 
-**O que ainda não está provado** está listado em `progress.md` — com destaque para os
-*payloads de webhook*, que exigiriam um túnel público para capturar (o sandbox não
-entrega em localhost, que é o motivo de este projeto existir).
+**What isn't proven yet** is listed in `progress.md` — most notably the *webhook
+payloads*, which would need a public tunnel to capture (the sandbox doesn't deliver
+to localhost, which is the reason this project exists).
 
-## Licença e isenção
+## License and disclaimer
 
-MIT — veja [`LICENSE`](LICENSE).
+MIT — see [`LICENSE`](LICENSE).
 
-**Este projeto não é afiliado ao Asaas.** É um simulador independente da API
-pública deles, feito para desenvolvimento e teste locais. "Asaas" é marca dos seus
-respectivos donos. **Não use isto para processar dinheiro de verdade**: nenhuma
-cobrança aqui é real, e a chave de API que o simulador aceita é qualquer string.
+**This project is not affiliated with Asaas.** It's an independent simulator of
+their public API, built for local development and testing. "Asaas" is a trademark
+of its respective owners. **Do not use this to move real money**: no payment here
+is real, and the API key the simulator accepts is any string at all.
