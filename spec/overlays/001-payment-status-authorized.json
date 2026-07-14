@@ -1,0 +1,13 @@
+{
+  "_why": "A spec publicada pelo Asaas omite o status AUTHORIZED de TODOS os 7 enums de status de cobrança. Ele existe na prática: é o estado de uma cobrança de cartão criada com `authorizeOnly: true` (pré-autorização), documentado em prosa em /reference/capturar-cobranca-com-pre-autorizacao e emitido como evento PAYMENT_AUTHORIZED. Sem este overlay, a validação de response rejeitaria uma cobrança pré-autorizada legítima. O arquivo spec/openapi.json permanece intocado para que o diff de drift contra o upstream continue limpo.",
+  "_source": "https://docs.asaas.com/reference/capturar-cobranca-com-pre-autorizacao",
+  "patch": [
+    { "op": "add", "path": "/components/schemas/PaymentGetResponsePaymentStatus/enum/-", "value": "AUTHORIZED" },
+    { "op": "add", "path": "/components/schemas/PaymentListRequestPaymentStatus/enum/-", "value": "AUTHORIZED" },
+    { "op": "add", "path": "/components/schemas/PaymentStatusResponsePaymentStatus/enum/-", "value": "AUTHORIZED" },
+    { "op": "add", "path": "/components/schemas/PaymentLeanGetResponsePaymentStatus/enum/-", "value": "AUTHORIZED" },
+    { "op": "add", "path": "/components/schemas/PaymentLeanSaveWithCreditCardResponsePaymentStatus/enum/-", "value": "AUTHORIZED" },
+    { "op": "add", "path": "/components/schemas/SubscriptionListPaymentsRequestPaymentStatus/enum/-", "value": "AUTHORIZED" },
+    { "op": "add", "path": "/components/schemas/InstallmentListPaymentsRequestPaymentStatus/enum/-", "value": "AUTHORIZED" }
+  ]
+}

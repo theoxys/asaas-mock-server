@@ -1,0 +1,11 @@
+{
+  "_why": "A spec marca TODOS os 9 campos de WebhookConfigSaveRequestDTO como `required`, inclusive `authToken`, `apiVersion`, `enabled` e `interrupted`. É artefato do gerador de spec do Asaas (o mesmo padrão aparece em outros SaveRequest). Na API real só `name`, `url`, `email`, `sendType` e `events` são obrigatórios: `authToken` é opcional (sem ele, o header `asaas-access-token` simplesmente não é enviado), `apiVersion` tem default 3, `enabled` default true, `interrupted` default false.\n\nExigi-los tornaria o simulador MAIS ESTRITO que o Asaas — um 400 onde a API real aceita. É exatamente a divergência silenciosa que este projeto existe para não ter: o dev ajusta o código para agradar o mock e aí quebra em produção.\n\nHISTÓRICO: este overlay também removia um `enum` espúrio no nível do array `events` (campo `type: array` que TAMBÉM carrega `enum`, quando o enum correto já está em `items.$ref`). Esse defeito existe em 6 pontos da spec e foi corrigido NA RAIZ, no codegen — `emit()` agora testa `type` antes de `enum`. Não patchear caso a caso.",
+  "_source": "https://docs.asaas.com/reference/criar-novo-webhook",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/components/schemas/WebhookConfigSaveRequestDTO/required",
+      "value": ["name", "url", "email", "sendType", "events"]
+    }
+  ]
+}

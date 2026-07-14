@@ -1,0 +1,241 @@
+{
+  "scenario": "boleto-com-juros-e-multa",
+  "description": "Boleto com multa de 2% e juros de 1% a.m. Prova a composição do netValue e o formato dos objetos discount/fine/interest na resposta.",
+  "capturedAt": "2026-07-14T06:46:02.186Z",
+  "anchorDate": "2026-07-14",
+  "source": "asaas-sandbox",
+  "steps": [
+    {
+      "step": {
+        "label": "cria cliente",
+        "operationId": "create-new-customer",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        },
+        "capture": {
+          "customerId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/customers",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "customer",
+          "id": "cus_000008392497",
+          "dateCreated": "2026-07-14",
+          "name": "Cliente Paridade",
+          "email": "paridade@example.com",
+          "company": null,
+          "phone": null,
+          "mobilePhone": "47996321478",
+          "address": null,
+          "addressNumber": null,
+          "complement": null,
+          "province": null,
+          "postalCode": null,
+          "cpfCnpj": "24971563792",
+          "personType": "FISICA",
+          "deleted": false,
+          "additionalEmails": null,
+          "externalReference": null,
+          "notificationDisabled": false,
+          "observations": null,
+          "municipalInscription": null,
+          "stateInscription": null,
+          "canDelete": true,
+          "cannotBeDeletedReason": null,
+          "canEdit": true,
+          "cannotEditReason": null,
+          "city": null,
+          "cityName": null,
+          "state": null,
+          "country": "Brasil"
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "cria boleto de R$ 350 com multa, juros e desconto",
+        "operationId": "create-new-payment",
+        "body": {
+          "customer": "$customerId",
+          "billingType": "BOLETO",
+          "value": 350,
+          "dueDate": "$hoje+10",
+          "fine": {
+            "value": 2,
+            "type": "PERCENTAGE"
+          },
+          "interest": {
+            "value": 1
+          },
+          "discount": {
+            "value": 5,
+            "dueDateLimitDays": 0,
+            "type": "PERCENTAGE"
+          }
+        },
+        "capture": {
+          "paymentId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/payments",
+        "body": {
+          "customer": "cus_000008392497",
+          "billingType": "BOLETO",
+          "value": 350,
+          "dueDate": "2026-07-24",
+          "fine": {
+            "value": 2,
+            "type": "PERCENTAGE"
+          },
+          "interest": {
+            "value": 1
+          },
+          "discount": {
+            "value": 5,
+            "dueDateLimitDays": 0,
+            "type": "PERCENTAGE"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "payment",
+          "id": "pay_pngqmn2bxuyccy7z",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392497",
+          "checkoutSession": null,
+          "paymentLink": null,
+          "value": 350,
+          "netValue": 348.01,
+          "originalValue": null,
+          "interestValue": null,
+          "description": null,
+          "billingType": "BOLETO",
+          "canBePaidAfterDueDate": true,
+          "pixTransaction": null,
+          "status": "PENDING",
+          "dueDate": "2026-07-24",
+          "originalDueDate": "2026-07-24",
+          "paymentDate": null,
+          "clientPaymentDate": null,
+          "installmentNumber": null,
+          "invoiceUrl": "https://sandbox.asaas.com/i/pngqmn2bxuyccy7z",
+          "invoiceNumber": "15924715",
+          "externalReference": null,
+          "deleted": false,
+          "anticipated": false,
+          "anticipable": false,
+          "creditDate": null,
+          "estimatedCreditDate": null,
+          "transactionReceiptUrl": null,
+          "nossoNumero": "12745149",
+          "bankSlipUrl": "https://sandbox.asaas.com/b/pdf/pngqmn2bxuyccy7z",
+          "lastInvoiceViewedDate": null,
+          "lastBankSlipViewedDate": null,
+          "discount": {
+            "value": 5,
+            "limitDate": null,
+            "dueDateLimitDays": 0,
+            "type": "PERCENTAGE"
+          },
+          "fine": {
+            "value": 2,
+            "type": "PERCENTAGE"
+          },
+          "interest": {
+            "value": 1,
+            "type": "PERCENTAGE"
+          },
+          "postalService": false,
+          "escrow": null,
+          "refunds": null
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "recupera a cobrança",
+        "operationId": "retrieve-a-single-payment",
+        "params": {
+          "id": "$paymentId"
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/v3/payments/pay_pngqmn2bxuyccy7z"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "payment",
+          "id": "pay_pngqmn2bxuyccy7z",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392497",
+          "checkoutSession": null,
+          "paymentLink": null,
+          "value": 350,
+          "netValue": 348.01,
+          "originalValue": null,
+          "interestValue": null,
+          "description": null,
+          "billingType": "BOLETO",
+          "canBePaidAfterDueDate": true,
+          "pixTransaction": null,
+          "status": "PENDING",
+          "dueDate": "2026-07-24",
+          "originalDueDate": "2026-07-24",
+          "paymentDate": null,
+          "clientPaymentDate": null,
+          "installmentNumber": null,
+          "invoiceUrl": "https://sandbox.asaas.com/i/pngqmn2bxuyccy7z",
+          "invoiceNumber": "15924715",
+          "externalReference": null,
+          "deleted": false,
+          "anticipated": false,
+          "anticipable": false,
+          "creditDate": null,
+          "estimatedCreditDate": null,
+          "transactionReceiptUrl": null,
+          "nossoNumero": "12745149",
+          "bankSlipUrl": "https://sandbox.asaas.com/b/pdf/pngqmn2bxuyccy7z",
+          "lastInvoiceViewedDate": null,
+          "lastBankSlipViewedDate": null,
+          "discount": {
+            "value": 5,
+            "limitDate": null,
+            "dueDateLimitDays": 0,
+            "type": "PERCENTAGE"
+          },
+          "fine": {
+            "value": 2,
+            "type": "PERCENTAGE"
+          },
+          "interest": {
+            "value": 1,
+            "type": "PERCENTAGE"
+          },
+          "postalService": false,
+          "escrow": null,
+          "refunds": null
+        }
+      }
+    }
+  ]
+}

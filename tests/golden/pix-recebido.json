@@ -1,0 +1,217 @@
+{
+  "scenario": "pix-recebido",
+  "description": "Pix: PENDING → RECEIVED direto (pula CONFIRMED), taxa FIXA de R$ 1,99, netValue = 98,01. É a regra mais fácil de errar (achar que a taxa do Pix é %).",
+  "capturedAt": "2026-07-14T06:45:59.261Z",
+  "anchorDate": "2026-07-14",
+  "source": "asaas-sandbox",
+  "steps": [
+    {
+      "step": {
+        "label": "cria cliente",
+        "operationId": "create-new-customer",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        },
+        "capture": {
+          "customerId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/customers",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "customer",
+          "id": "cus_000008392496",
+          "dateCreated": "2026-07-14",
+          "name": "Cliente Paridade",
+          "email": "paridade@example.com",
+          "company": null,
+          "phone": null,
+          "mobilePhone": "47996321478",
+          "address": null,
+          "addressNumber": null,
+          "complement": null,
+          "province": null,
+          "postalCode": null,
+          "cpfCnpj": "24971563792",
+          "personType": "FISICA",
+          "deleted": false,
+          "additionalEmails": null,
+          "externalReference": null,
+          "notificationDisabled": false,
+          "observations": null,
+          "municipalInscription": null,
+          "stateInscription": null,
+          "canDelete": true,
+          "cannotBeDeletedReason": null,
+          "canEdit": true,
+          "cannotEditReason": null,
+          "city": null,
+          "cityName": null,
+          "state": null,
+          "country": "Brasil"
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "cria cobrança Pix de R$ 100",
+        "operationId": "create-new-payment",
+        "body": {
+          "customer": "$customerId",
+          "billingType": "PIX",
+          "value": 100,
+          "dueDate": "$hoje+5",
+          "description": "Paridade Pix"
+        },
+        "capture": {
+          "paymentId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/payments",
+        "body": {
+          "customer": "cus_000008392496",
+          "billingType": "PIX",
+          "value": 100,
+          "dueDate": "2026-07-19",
+          "description": "Paridade Pix"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "payment",
+          "id": "pay_ibvub5tu20v9lxr7",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392496",
+          "checkoutSession": null,
+          "paymentLink": null,
+          "value": 100,
+          "netValue": 98.01,
+          "originalValue": null,
+          "interestValue": null,
+          "description": "Paridade Pix",
+          "billingType": "PIX",
+          "pixTransaction": null,
+          "status": "PENDING",
+          "dueDate": "2026-07-19",
+          "originalDueDate": "2026-07-19",
+          "paymentDate": null,
+          "clientPaymentDate": null,
+          "installmentNumber": null,
+          "invoiceUrl": "https://sandbox.asaas.com/i/ibvub5tu20v9lxr7",
+          "invoiceNumber": "15924714",
+          "externalReference": null,
+          "deleted": false,
+          "anticipated": false,
+          "anticipable": false,
+          "creditDate": null,
+          "estimatedCreditDate": null,
+          "transactionReceiptUrl": null,
+          "nossoNumero": null,
+          "bankSlipUrl": null,
+          "lastInvoiceViewedDate": null,
+          "lastBankSlipViewedDate": null,
+          "discount": {
+            "value": 0,
+            "limitDate": null,
+            "dueDateLimitDays": 0,
+            "type": "FIXED"
+          },
+          "fine": {
+            "value": 0,
+            "type": "FIXED"
+          },
+          "interest": {
+            "value": 0,
+            "type": "PERCENTAGE"
+          },
+          "postalService": false,
+          "escrow": null,
+          "refunds": null
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "recupera a cobrança",
+        "operationId": "retrieve-a-single-payment",
+        "params": {
+          "id": "$paymentId"
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/v3/payments/pay_ibvub5tu20v9lxr7"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "payment",
+          "id": "pay_ibvub5tu20v9lxr7",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392496",
+          "checkoutSession": null,
+          "paymentLink": null,
+          "value": 100,
+          "netValue": 98.01,
+          "originalValue": null,
+          "interestValue": null,
+          "description": "Paridade Pix",
+          "billingType": "PIX",
+          "pixTransaction": null,
+          "status": "PENDING",
+          "dueDate": "2026-07-19",
+          "originalDueDate": "2026-07-19",
+          "paymentDate": null,
+          "clientPaymentDate": null,
+          "installmentNumber": null,
+          "invoiceUrl": "https://sandbox.asaas.com/i/ibvub5tu20v9lxr7",
+          "invoiceNumber": "15924714",
+          "externalReference": null,
+          "deleted": false,
+          "anticipated": false,
+          "anticipable": false,
+          "creditDate": null,
+          "estimatedCreditDate": null,
+          "transactionReceiptUrl": null,
+          "nossoNumero": null,
+          "bankSlipUrl": null,
+          "lastInvoiceViewedDate": null,
+          "lastBankSlipViewedDate": null,
+          "discount": {
+            "value": 0,
+            "limitDate": null,
+            "dueDateLimitDays": 0,
+            "type": "FIXED"
+          },
+          "fine": {
+            "value": 0,
+            "type": "FIXED"
+          },
+          "interest": {
+            "value": 0,
+            "type": "PERCENTAGE"
+          },
+          "postalService": false,
+          "escrow": null,
+          "refunds": null
+        }
+      }
+    }
+  ]
+}

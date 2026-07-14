@@ -1,0 +1,33 @@
+{
+  "name": "asaas-mock-server",
+  "version": "0.1.0",
+  "description": "Simulador local fiel do sandbox Asaas — entrega webhooks em localhost",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "codegen": "bun tools/codegen/main.ts",
+    "spec:fetch": "bun tools/spec-fetch.ts",
+    "spec:diff": "bun tools/spec-diff.ts",
+    "coverage:ops": "bun tools/coverage-ops.ts",
+    "capture": "bun tools/capture.ts",
+    "e2e": "bun tools/e2e.ts",
+    "test:parity": "bun test tests/parity",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun src/db/migrate.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "release": "./tools/release.sh"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.33",
+    "drizzle-orm": "^0.44.2",
+    "elysia": "^1.3.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.17",
+    "drizzle-kit": "^0.31.1",
+    "typescript": "^5.8.3"
+  }
+}

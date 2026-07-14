@@ -1,0 +1,359 @@
+{
+  "scenario": "parcelamento-no-cartao",
+  "description": "Parcelamento no cartão: a emissora autoriza o total de uma vez. As parcelas já nascem CONFIRMED? E o crédito é D+32 a partir da confirmação (todas juntas) ou D+32 do vencimento de cada uma (escalonado)? A doc não diz; este roteiro diz.",
+  "capturedAt": "2026-07-14T06:46:15.881Z",
+  "anchorDate": "2026-07-14",
+  "source": "asaas-sandbox",
+  "steps": [
+    {
+      "step": {
+        "label": "cria cliente",
+        "operationId": "create-new-customer",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        },
+        "capture": {
+          "customerId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/customers",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "customer",
+          "id": "cus_000008392500",
+          "dateCreated": "2026-07-14",
+          "name": "Cliente Paridade",
+          "email": "paridade@example.com",
+          "company": null,
+          "phone": null,
+          "mobilePhone": "47996321478",
+          "address": null,
+          "addressNumber": null,
+          "complement": null,
+          "province": null,
+          "postalCode": null,
+          "cpfCnpj": "24971563792",
+          "personType": "FISICA",
+          "deleted": false,
+          "additionalEmails": null,
+          "externalReference": null,
+          "notificationDisabled": false,
+          "observations": null,
+          "municipalInscription": null,
+          "stateInscription": null,
+          "canDelete": true,
+          "cannotBeDeletedReason": null,
+          "canEdit": true,
+          "cannotEditReason": null,
+          "city": null,
+          "cityName": null,
+          "state": null,
+          "country": "Brasil"
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "parcela R$ 300 em 3x no cartão de teste que aprova",
+        "operationId": "create-installment",
+        "body": {
+          "customer": "$customerId",
+          "billingType": "CREDIT_CARD",
+          "installmentCount": 3,
+          "totalValue": 300,
+          "dueDate": "$hoje+10",
+          "creditCard": {
+            "holderName": "Cliente Paridade",
+            "number": "4444444444444444",
+            "expiryMonth": "12",
+            "expiryYear": "2030",
+            "ccv": "123"
+          },
+          "creditCardHolderInfo": {
+            "name": "Cliente Paridade",
+            "email": "paridade@example.com",
+            "cpfCnpj": "24971563792",
+            "postalCode": "01310-100",
+            "addressNumber": "100",
+            "phone": "47999999999"
+          },
+          "remoteIp": "127.0.0.1"
+        },
+        "capture": {
+          "installmentId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/installments",
+        "body": {
+          "customer": "cus_000008392500",
+          "billingType": "CREDIT_CARD",
+          "installmentCount": 3,
+          "totalValue": 300,
+          "dueDate": "2026-07-24",
+          "creditCard": {
+            "holderName": "Cliente Paridade",
+            "number": "4444444444444444",
+            "expiryMonth": "12",
+            "expiryYear": "2030",
+            "ccv": "123"
+          },
+          "creditCardHolderInfo": {
+            "name": "Cliente Paridade",
+            "email": "paridade@example.com",
+            "cpfCnpj": "24971563792",
+            "postalCode": "01310-100",
+            "addressNumber": "100",
+            "phone": "47999999999"
+          },
+          "remoteIp": "127.0.0.1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "installment",
+          "id": "d09c7898-42d2-4372-9e55-d3d90915ff46",
+          "value": 300,
+          "netValue": 289.05,
+          "paymentValue": 100,
+          "installmentCount": 3,
+          "billingType": "CREDIT_CARD",
+          "paymentDate": "2026-07-14",
+          "description": null,
+          "expirationDay": 24,
+          "deleted": false,
+          "dateCreated": "2026-07-14",
+          "checkoutSession": null,
+          "customer": "cus_000008392500",
+          "paymentLink": null,
+          "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/0242986318583656",
+          "creditCard": {
+            "creditCardNumber": "4444",
+            "creditCardBrand": "VISA",
+            "creditCardToken": "00fcba92-d490-42d5-96a8-0db4b48f95a1"
+          },
+          "refunds": null
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "as 3 parcelas — status e creditDate de cada uma",
+        "operationId": "list-payments",
+        "query": {
+          "installment": "$installmentId",
+          "limit": 100
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/v3/payments",
+        "query": {
+          "installment": "d09c7898-42d2-4372-9e55-d3d90915ff46",
+          "limit": "100"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "list",
+          "hasMore": false,
+          "totalCount": 3,
+          "limit": 100,
+          "offset": 0,
+          "data": [
+            {
+              "object": "payment",
+              "id": "pay_7gi8nmw993j1qnph",
+              "dateCreated": "2026-07-14",
+              "customer": "cus_000008392500",
+              "installment": "d09c7898-42d2-4372-9e55-d3d90915ff46",
+              "checkoutSession": null,
+              "paymentLink": null,
+              "value": 100,
+              "netValue": 96.35,
+              "originalValue": null,
+              "interestValue": null,
+              "description": "Parcela 3 de 3.",
+              "billingType": "CREDIT_CARD",
+              "confirmedDate": "2026-07-14",
+              "creditCard": {
+                "creditCardNumber": "4444",
+                "creditCardBrand": "VISA",
+                "creditCardToken": "00fcba92-d490-42d5-96a8-0db4b48f95a1"
+              },
+              "pixTransaction": null,
+              "status": "CONFIRMED",
+              "dueDate": "2026-09-24",
+              "originalDueDate": "2026-09-24",
+              "paymentDate": null,
+              "clientPaymentDate": "2026-07-14",
+              "installmentNumber": 3,
+              "invoiceUrl": "https://sandbox.asaas.com/i/7gi8nmw993j1qnph",
+              "invoiceNumber": "15924731",
+              "externalReference": null,
+              "deleted": false,
+              "anticipated": false,
+              "anticipable": false,
+              "creditDate": "2026-10-19",
+              "estimatedCreditDate": "2026-10-19",
+              "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/0242986318583656",
+              "nossoNumero": null,
+              "bankSlipUrl": null,
+              "lastInvoiceViewedDate": null,
+              "lastBankSlipViewedDate": null,
+              "discount": {
+                "value": 0,
+                "limitDate": null,
+                "dueDateLimitDays": 0,
+                "type": "FIXED"
+              },
+              "fine": {
+                "value": 0,
+                "type": "FIXED"
+              },
+              "interest": {
+                "value": 0,
+                "type": "PERCENTAGE"
+              },
+              "postalService": false,
+              "escrow": null,
+              "refunds": null
+            },
+            {
+              "object": "payment",
+              "id": "pay_7a1fnpeyc80n3x0h",
+              "dateCreated": "2026-07-14",
+              "customer": "cus_000008392500",
+              "installment": "d09c7898-42d2-4372-9e55-d3d90915ff46",
+              "checkoutSession": null,
+              "paymentLink": null,
+              "value": 100,
+              "netValue": 96.35,
+              "originalValue": null,
+              "interestValue": null,
+              "description": "Parcela 2 de 3.",
+              "billingType": "CREDIT_CARD",
+              "confirmedDate": "2026-07-14",
+              "creditCard": {
+                "creditCardNumber": "4444",
+                "creditCardBrand": "VISA",
+                "creditCardToken": "00fcba92-d490-42d5-96a8-0db4b48f95a1"
+              },
+              "pixTransaction": null,
+              "status": "CONFIRMED",
+              "dueDate": "2026-08-24",
+              "originalDueDate": "2026-08-24",
+              "paymentDate": null,
+              "clientPaymentDate": "2026-07-14",
+              "installmentNumber": 2,
+              "invoiceUrl": "https://sandbox.asaas.com/i/7a1fnpeyc80n3x0h",
+              "invoiceNumber": "15924730",
+              "externalReference": null,
+              "deleted": false,
+              "anticipated": false,
+              "anticipable": false,
+              "creditDate": "2026-09-16",
+              "estimatedCreditDate": "2026-09-16",
+              "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/0242986318583656",
+              "nossoNumero": null,
+              "bankSlipUrl": null,
+              "lastInvoiceViewedDate": null,
+              "lastBankSlipViewedDate": null,
+              "discount": {
+                "value": 0,
+                "limitDate": null,
+                "dueDateLimitDays": 0,
+                "type": "FIXED"
+              },
+              "fine": {
+                "value": 0,
+                "type": "FIXED"
+              },
+              "interest": {
+                "value": 0,
+                "type": "PERCENTAGE"
+              },
+              "postalService": false,
+              "escrow": null,
+              "refunds": null
+            },
+            {
+              "object": "payment",
+              "id": "pay_kl8s47zy8fchobbh",
+              "dateCreated": "2026-07-14",
+              "customer": "cus_000008392500",
+              "installment": "d09c7898-42d2-4372-9e55-d3d90915ff46",
+              "checkoutSession": null,
+              "paymentLink": null,
+              "value": 100,
+              "netValue": 96.35,
+              "originalValue": null,
+              "interestValue": null,
+              "description": "Parcela 1 de 3.",
+              "billingType": "CREDIT_CARD",
+              "confirmedDate": "2026-07-14",
+              "creditCard": {
+                "creditCardNumber": "4444",
+                "creditCardBrand": "VISA",
+                "creditCardToken": "00fcba92-d490-42d5-96a8-0db4b48f95a1"
+              },
+              "pixTransaction": null,
+              "status": "CONFIRMED",
+              "dueDate": "2026-07-24",
+              "originalDueDate": "2026-07-24",
+              "paymentDate": null,
+              "clientPaymentDate": "2026-07-14",
+              "installmentNumber": 1,
+              "invoiceUrl": "https://sandbox.asaas.com/i/kl8s47zy8fchobbh",
+              "invoiceNumber": "15924729",
+              "externalReference": null,
+              "deleted": false,
+              "anticipated": false,
+              "anticipable": false,
+              "creditDate": "2026-08-17",
+              "estimatedCreditDate": "2026-08-17",
+              "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/0242986318583656",
+              "nossoNumero": null,
+              "bankSlipUrl": null,
+              "lastInvoiceViewedDate": null,
+              "lastBankSlipViewedDate": null,
+              "discount": {
+                "value": 0,
+                "limitDate": null,
+                "dueDateLimitDays": 0,
+                "type": "FIXED"
+              },
+              "fine": {
+                "value": 0,
+                "type": "FIXED"
+              },
+              "interest": {
+                "value": 0,
+                "type": "PERCENTAGE"
+              },
+              "postalService": false,
+              "escrow": null,
+              "refunds": null
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

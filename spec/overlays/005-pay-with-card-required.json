@@ -1,0 +1,10 @@
+{
+  "_why": "A spec marca `creditCard` e `creditCardHolderInfo` como obrigatórios em PaymentPayWithCreditCardRequestDTO. O Asaas real NÃO os exige: pagar com um cartão já tokenizado é mandar só `creditCardToken` — que é justamente o ponto da tokenização (o PAN não volta a trafegar).\n\nProvado contra o sandbox real:\n  POST /v3/payments/{id}/payWithCreditCard  {\"creditCardToken\":\"f19c0055-…\"}\n  → 200, status CONFIRMED, com o objeto `creditCard` de volta na resposta.\n\nEnquanto o `required` estava no schema, o Elysia rejeitava o body ANTES do handler:\n  {\"errors\":[{\"code\":\"invalid_creditCard\",\"description\":\"Expected required property\"}, …]}\n\nO handler (`payExistingWithCard`) já sabe aceitar token OU cartão — era só o schema barrando a porta. Mesmo defeito do overlay 004, na outra ponta do fluxo do cartão.",
+  "_source": "captura contra sandbox.asaas.com/api/v3 em 2026-07-14 (pagamento de cobrança só com creditCardToken → 200 CONFIRMED)",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/components/schemas/PaymentPayWithCreditCardRequestDTO/required"
+    }
+  ]
+}

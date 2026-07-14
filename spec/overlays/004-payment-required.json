@@ -1,0 +1,14 @@
+{
+  "_why": "O Asaas valida a cobrança SEMANTICAMENTE, não estruturalmente — e CURTO-CIRCUITA no primeiro erro, em vez de devolver a lista inteira.\n\nProvado contra o sandbox real: um POST /v3/payments com body vazio devolve UM erro só —\n  {\"errors\":[{\"code\":\"invalid_customer\",\"description\":\"Customer inválido ou não informado.\"}]}\n\nEnquanto `required` estava no schema, o Elysia rejeitava o body ANTES do handler e devolvia 17 erros do TypeBox, em inglês (\"Expected string\", \"Expected union value\"), que nenhum cliente do Asaas jamais veria. É o pior tipo de infidelidade: o dev escreve o tratamento de erro contra o nosso formato e quebra em produção.\n\nTirando o `required`, a validação volta para o handler — que é onde ela mora no Asaas: na ordem certa (customer → billingType → dueDate → value), parando no primeiro erro, com as mensagens certas.\n\nBônus: resolve também o defeito que o Track H anotou. `value` era obrigatório mesmo numa cobrança PARCELADA via POST /v3/payments, onde o valor vem em `totalValue` ou `installmentValue` — exatamente o mesmo defeito que o overlay 003 corrigiu no InstallmentSaveRequestDTO, na outra ponta.\n\n`remoteIp`, que a variante do cartão marca como required, continua sendo exigido pelo handler — mas SÓ quando o body de fato traz cartão. Exigi-lo de um boleto tornaria o simulador mais estrito que a API real.",
+  "_source": "captura contra api-sandbox.asaas.com (tests/golden/erros-de-validacao.json)",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/components/schemas/PaymentSaveRequestDTO/required"
+    },
+    {
+      "op": "remove",
+      "path": "/components/schemas/PaymentSaveWithCreditCardRequestDTO/required"
+    }
+  ]
+}

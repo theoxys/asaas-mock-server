@@ -1,0 +1,74 @@
+services:
+  asaas:
+    # Este compose é o do DESENVOLVIMENTO: como `build` está presente, um
+    # `docker compose up` aqui compila o código local e ignora o registry. O
+    # `image` só dá o nome da tag resultante.
+    #
+    # Para CONSUMIR o simulador em outro projeto, não copie este arquivo — copie
+    # o bloco de 12 linhas da seção "Usar em outro projeto" do README, que só tem
+    # `image:` e puxa do Docker Hub.
+    image: mpiresdev/asaas-mock-server:latest
+    build: .
+    container_name: asaas-mock
+    ports:
+      - '${PORT:-45445}:45445'
+    env_file:
+      # Opcional de propósito: `docker compose up` tem que funcionar num clone
+      # limpo, sem nenhum passo prévio. Copie o .env.example se quiser fixar a
+      # chave de API ou mexer nas taxas — senão os defaults valem e a chave é
+      # gerada e IMPRESSA no boot.
+      - path: .env
+        required: false
+    environment:
+      PORT: 45445
+      TZ: America/Sao_Paulo
+      DATABASE_PATH: /data/asaas.db
+
+      # ─────────────────────────────────────────────────────────────────
+      # A LINHA QUE FAZ O PROJETO TER SENTIDO.
+      #
+      # Dentro do container, "localhost" é o PRÓPRIO container. Um webhook
+      # apontado para http://localhost:3000 bateria nele mesmo e nunca chegaria
+      # na sua aplicação. Aqui reescrevemos o host para que o evento saia do
+      # container e chegue na sua máquina.
+      #
+      # Deixe vazio para desligar (rodando fora do Docker).
+      # ─────────────────────────────────────────────────────────────────
+      WEBHOOK_LOCALHOST_REWRITE: host.docker.internal
+
+      # ─────────────────────────────────────────────────────────────────
+      # O relógio COMEÇA no tempo real e ANDA normalmente — mas você pode
+      # pular. É o que faz `+32 dias` no painel funcionar (e o webhook de
+      # PAYMENT_RECEIVED chegar em milissegundos em vez de num mês).
+      #
+      # Em REAL (o default do código) a viagem no tempo é recusada, e os
+      # botões do painel nascem desabilitados — o que esvazia o motivo de
+      # o painel existir. Por isso o compose escolhe VIRTUAL_FLOWING.
+      #
+      # Use VIRTUAL_FROZEN se quiser tempo 100% determinístico (CI).
+      # ─────────────────────────────────────────────────────────────────
+      CLOCK_MODE: ${CLOCK_MODE:-VIRTUAL_FLOWING}
+
+    extra_hosts:
+      # No Docker Desktop (macOS/Windows) host.docker.internal já existe.
+      # No Linux, não — esta linha é o que faz funcionar lá também.
+      - 'host.docker.internal:host-gateway'
+
+    volumes:
+      - asaas-data:/data
+
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "await fetch('http://localhost:45445/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+    restart: unless-stopped
+
+volumes:
+  asaas-data:

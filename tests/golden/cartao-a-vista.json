@@ -1,0 +1,219 @@
+{
+  "scenario": "cartao-a-vista",
+  "description": "Cartão à vista: taxa R$ 0,49 + 2,99%, e estimatedCreditDate em D+32 (a doc técnica diz 32; o marketing diz 30 — este roteiro decide a briga).",
+  "capturedAt": "2026-07-14T06:46:05.143Z",
+  "anchorDate": "2026-07-14",
+  "source": "asaas-sandbox",
+  "steps": [
+    {
+      "step": {
+        "label": "cria cliente",
+        "operationId": "create-new-customer",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        },
+        "capture": {
+          "customerId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/customers",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "customer",
+          "id": "cus_000008392498",
+          "dateCreated": "2026-07-14",
+          "name": "Cliente Paridade",
+          "email": "paridade@example.com",
+          "company": null,
+          "phone": null,
+          "mobilePhone": "47996321478",
+          "address": null,
+          "addressNumber": null,
+          "complement": null,
+          "province": null,
+          "postalCode": null,
+          "cpfCnpj": "24971563792",
+          "personType": "FISICA",
+          "deleted": false,
+          "additionalEmails": null,
+          "externalReference": null,
+          "notificationDisabled": false,
+          "observations": null,
+          "municipalInscription": null,
+          "stateInscription": null,
+          "canDelete": true,
+          "cannotBeDeletedReason": null,
+          "canEdit": true,
+          "cannotEditReason": null,
+          "city": null,
+          "cityName": null,
+          "state": null,
+          "country": "Brasil"
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "cria cobrança de cartão de R$ 100",
+        "operationId": "create-new-payment",
+        "body": {
+          "customer": "$customerId",
+          "billingType": "CREDIT_CARD",
+          "value": 100,
+          "dueDate": "$hoje+5"
+        },
+        "capture": {
+          "paymentId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/payments",
+        "body": {
+          "customer": "cus_000008392498",
+          "billingType": "CREDIT_CARD",
+          "value": 100,
+          "dueDate": "2026-07-19"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "payment",
+          "id": "pay_hzhycv2xa7yims5b",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392498",
+          "checkoutSession": null,
+          "paymentLink": null,
+          "value": 100,
+          "netValue": 96.52,
+          "originalValue": null,
+          "interestValue": null,
+          "description": null,
+          "billingType": "CREDIT_CARD",
+          "confirmedDate": null,
+          "creditCard": null,
+          "pixTransaction": null,
+          "status": "PENDING",
+          "dueDate": "2026-07-19",
+          "originalDueDate": "2026-07-19",
+          "paymentDate": null,
+          "clientPaymentDate": null,
+          "installmentNumber": null,
+          "invoiceUrl": "https://sandbox.asaas.com/i/hzhycv2xa7yims5b",
+          "invoiceNumber": "15924716",
+          "externalReference": null,
+          "deleted": false,
+          "anticipated": false,
+          "anticipable": false,
+          "creditDate": null,
+          "estimatedCreditDate": null,
+          "transactionReceiptUrl": null,
+          "nossoNumero": null,
+          "bankSlipUrl": null,
+          "lastInvoiceViewedDate": null,
+          "lastBankSlipViewedDate": null,
+          "discount": {
+            "value": 0,
+            "limitDate": null,
+            "dueDateLimitDays": 0,
+            "type": "FIXED"
+          },
+          "fine": {
+            "value": 0,
+            "type": "FIXED"
+          },
+          "interest": {
+            "value": 0,
+            "type": "PERCENTAGE"
+          },
+          "postalService": false,
+          "escrow": null,
+          "refunds": null
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "recupera a cobrança",
+        "operationId": "retrieve-a-single-payment",
+        "params": {
+          "id": "$paymentId"
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/v3/payments/pay_hzhycv2xa7yims5b"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "payment",
+          "id": "pay_hzhycv2xa7yims5b",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392498",
+          "checkoutSession": null,
+          "paymentLink": null,
+          "value": 100,
+          "netValue": 96.52,
+          "originalValue": null,
+          "interestValue": null,
+          "description": null,
+          "billingType": "CREDIT_CARD",
+          "confirmedDate": null,
+          "creditCard": null,
+          "pixTransaction": null,
+          "status": "PENDING",
+          "dueDate": "2026-07-19",
+          "originalDueDate": "2026-07-19",
+          "paymentDate": null,
+          "clientPaymentDate": null,
+          "installmentNumber": null,
+          "invoiceUrl": "https://sandbox.asaas.com/i/hzhycv2xa7yims5b",
+          "invoiceNumber": "15924716",
+          "externalReference": null,
+          "deleted": false,
+          "anticipated": false,
+          "anticipable": false,
+          "creditDate": null,
+          "estimatedCreditDate": null,
+          "transactionReceiptUrl": null,
+          "nossoNumero": null,
+          "bankSlipUrl": null,
+          "lastInvoiceViewedDate": null,
+          "lastBankSlipViewedDate": null,
+          "discount": {
+            "value": 0,
+            "limitDate": null,
+            "dueDateLimitDays": 0,
+            "type": "FIXED"
+          },
+          "fine": {
+            "value": 0,
+            "type": "FIXED"
+          },
+          "interest": {
+            "value": 0,
+            "type": "PERCENTAGE"
+          },
+          "postalService": false,
+          "escrow": null,
+          "refunds": null
+        }
+      }
+    }
+  ]
+}

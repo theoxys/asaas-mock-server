@@ -1,0 +1,74 @@
+{
+  "_why": "Dois defeitos da spec no domínio de recorrência, ambos do mesmo tipo já visto em 002: a spec é MAIS ESTRITA que a API real, e obedecê-la faria o simulador devolver 400 onde o Asaas aceita.\n\n1. InstallmentSaveRequestDTO marca `value` como required. Na API real informa-se `value` (valor POR PARCELA) OU `totalValue` (total a dividir) — são caminhos alternativos, e o exemplo canônico do parcelamento (R$ 350 em 12x) só existe via `totalValue`, porque 350/12 não é um valor de parcela representável. Exigir `value` tornaria impossível criar, neste simulador, o parcelamento mais comum que existe. Como o Elysia REMOVE do body toda propriedade fora do schema, manter `value` required também obrigaria o cliente a mandar um número que seria ignorado. Removido de `required` nos dois DTOs (com e sem cartão); a validação \"informe value ou totalValue\" passa a ser do handler, que é onde ela mora no Asaas.\n\n2. SubscriptionUpdateRequestDTO não tem a propriedade `value`. É omissão: alterar o preço do plano é o motivo nº 1 para se atualizar uma assinatura, e é justamente o que o campo `updatePendingPayments` existe para propagar às cobranças já geradas. Sem `value` no schema, o Elysia o removeria do body e o simulador silenciosamente ignoraria a alteração — o pior defeito possível, porque o cliente veria 200 e nada mudaria. Adicionada com o mesmo formato de SubscriptionSaveRequestDTO.value.\n\n3. GET /v3/installments/{id}/payments e GET /v3/subscriptions/{id}/payments não declaram `offset`/`limit` — mas a RESPOSTA das duas é o envelope de listagem, com `limit`, `offset` e `hasMore` dentro. Um endpoint que reporta paginação e não aceita parâmetro de paginação é contraditório: com o default de 10, um parcelamento de 12x nunca conseguiria listar as 12 parcelas. Adicionados os mesmos dois parâmetros que todas as outras listagens da spec declaram.",
+  "_source": "https://docs.asaas.com/reference/criar-cobranca-parcelada + https://docs.asaas.com/reference/atualizar-assinatura-existente",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/components/schemas/InstallmentSaveRequestDTO/required",
+      "value": ["installmentCount", "customer", "billingType", "dueDate"]
+    },
+    {
+      "op": "replace",
+      "path": "/components/schemas/InstallmentSaveWithCreditCardRequestDTO/required",
+      "value": [
+        "installmentCount",
+        "customer",
+        "billingType",
+        "dueDate",
+        "creditCard",
+        "creditCardHolderInfo",
+        "remoteIp"
+      ]
+    },
+    {
+      "op": "add",
+      "path": "/components/schemas/SubscriptionUpdateRequestDTO/properties/value",
+      "value": {
+        "type": "number",
+        "format": "double",
+        "description": "Subscription value",
+        "example": 19.9
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1installments~1{id}~1payments/get/parameters/-",
+      "value": {
+        "name": "offset",
+        "in": "query",
+        "description": "List starting element",
+        "schema": { "type": "integer", "example": 0 }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1installments~1{id}~1payments/get/parameters/-",
+      "value": {
+        "name": "limit",
+        "in": "query",
+        "description": "Number of list elements (max: 100)",
+        "schema": { "maximum": 100, "type": "integer", "example": 10 }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1subscriptions~1{id}~1payments/get/parameters/-",
+      "value": {
+        "name": "offset",
+        "in": "query",
+        "description": "List starting element",
+        "schema": { "type": "integer", "example": 0 }
+      }
+    },
+    {
+      "op": "add",
+      "path": "/paths/~1v3~1subscriptions~1{id}~1payments/get/parameters/-",
+      "value": {
+        "name": "limit",
+        "in": "query",
+        "description": "Number of list elements (max: 100)",
+        "schema": { "maximum": 100, "type": "integer", "example": 10 }
+      }
+    }
+  ]
+}

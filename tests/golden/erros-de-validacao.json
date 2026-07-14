@@ -1,0 +1,61 @@
+{
+  "scenario": "erros-de-validacao",
+  "description": "O formato do erro é contrato: {\"errors\":[{\"code\":\"invalid_<campo>\",...}]}. E o código HTTP da criação: 200, nunca 201.",
+  "capturedAt": "2026-07-14T06:46:20.463Z",
+  "anchorDate": "2026-07-14",
+  "source": "asaas-sandbox",
+  "steps": [
+    {
+      "step": {
+        "label": "cliente com CPF inválido → invalid_cpfCnpj",
+        "operationId": "create-new-customer",
+        "body": {
+          "name": "Inválido",
+          "cpfCnpj": "11111111111"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/customers",
+        "body": {
+          "name": "Inválido",
+          "cpfCnpj": "11111111111"
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "errors": [
+            {
+              "code": "invalid_object",
+              "description": "O CPF/CNPJ informado é inválido."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "cobrança sem campos obrigatórios → 400",
+        "operationId": "create-new-payment",
+        "body": {}
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/payments",
+        "body": {}
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "errors": [
+            {
+              "code": "invalid_customer",
+              "description": "Customer inválido ou não informado."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

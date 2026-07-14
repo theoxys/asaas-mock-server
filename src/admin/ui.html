@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Asaas Mock — painel</title>
+<style>
+  /*
+   * Sem build step, sem CDN, sem dependência.
+   *
+   * Este arquivo é servido pelo próprio simulador dentro do container — uma
+   * toolchain de frontend aqui significaria um segundo estágio de build no
+   * Dockerfile para uma tela de dev. Não vale.
+   */
+  :root {
+    --bg: #0e1116;      --panel: #161b22;   --panel2: #1c232c;
+    --line: #2a323c;    --text: #e6edf3;    --dim: #8b98a5;
+    --accent: #3fb950;  --accent-dim: #23863640;
+    --warn: #d29922;    --danger: #f85149;  --link: #58a6ff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f8fa;    --panel: #fff;      --panel2: #f0f3f6;
+      --line: #d8dee4;  --text: #1f2328;    --dim: #656d76;
+      --accent: #1a7f37; --accent-dim: #2da44e1a;
+      --warn: #9a6700;  --danger: #cf222e;  --link: #0969da;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--link); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+
+  /* ── barra do relógio ─────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+  }
+  .hdr { max-width: 1180px; margin: 0 auto; display: flex; gap: 16px;
+         align-items: center; flex-wrap: wrap; }
+  .brand { font-weight: 600; letter-spacing: -.01em; }
+  .brand small { color: var(--dim); font-weight: 400; margin-left: 6px; }
+  .clock { margin-left: auto; display: flex; gap: 8px; align-items: center;
+           flex-wrap: wrap; }
+  .today { font-family: var(--mono); font-size: 13px; padding: 4px 10px;
+           background: var(--panel2); border: 1px solid var(--line);
+           border-radius: 6px; }
+  .today b { color: var(--accent); }
+
+  /* ── botões ───────────────────────────────────────────────── */
+  button {
+    font: inherit; cursor: pointer; color: var(--text);
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 11px;
+  }
+  button:hover:not(:disabled) { border-color: var(--dim); }
+  button:disabled { opacity: .45; cursor: progress; }
+  button.primary { background: var(--accent); border-color: var(--accent);
+                   color: #fff; font-weight: 500; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.1); }
+  button.ghost { background: none; padding: 3px 7px; font-size: 12px;
+                 color: var(--dim); }
+
+  /* ── cartões ──────────────────────────────────────────────── */
+  .grid { display: grid; gap: 14px; grid-template-columns: 340px 1fr;
+          align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 10px; overflow: hidden; }
+  .card > h2 {
+    margin: 0; padding: 11px 14px; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--dim);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center;
+    gap: 8px;
+  }
+  .card > h2 .count { margin-left: auto; font-weight: 400; }
+  .body { padding: 12px 14px; }
+
+  /* ── contas ───────────────────────────────────────────────── */
+  .acct {
+    padding: 11px 14px; border-bottom: 1px solid var(--line);
+    cursor: pointer; display: block; width: 100%; text-align: left;
+    background: none; border-radius: 0; border-left: 2px solid transparent;
+  }
+  .acct:last-child { border-bottom: 0; }
+  .acct:hover { background: var(--panel2); }
+  .acct[aria-current="true"] {
+    background: var(--accent-dim); border-left-color: var(--accent);
+  }
+  .acct .top { display: flex; align-items: baseline; gap: 8px; }
+  .acct .nm { font-weight: 500; }
+  .acct .bal { margin-left: auto; font-family: var(--mono); font-size: 13px; }
+  .acct .bal.neg { color: var(--danger); }
+  .acct .sub { color: var(--dim); font-size: 12px; font-family: var(--mono);
+               margin-top: 2px; }
+  .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+         padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line);
+         color: var(--dim); }
+  .tag.main { border-color: var(--accent); color: var(--accent); }
+
+  /* ── detalhe ──────────────────────────────────────────────── */
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px;
+        font-size: 13px; }
+  .kv dt { color: var(--dim); }
+  .kv dd { margin: 0; font-family: var(--mono); word-break: break-all;
+           display: flex; gap: 6px; align-items: flex-start; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--dim); font-weight: 500; font-size: 11px;
+       text-transform: uppercase; letter-spacing: .05em;
+       padding: 8px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px 14px; border-bottom: 1px solid var(--line);
+       font-family: var(--mono); font-size: 12.5px; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; }
+
+  .st { font-size: 11px; padding: 1px 6px; border-radius: 4px;
+        border: 1px solid currentColor; }
+  .st-PENDING, .st-AUTHORIZED { color: var(--dim); }
+  .st-CONFIRMED { color: var(--warn); }
+  .st-RECEIVED, .st-RECEIVED_IN_CASH, .st-DONE, .st-SUCCESS { color: var(--accent); }
+  .st-OVERDUE, .st-FAILED, .st-REFUNDED { color: var(--danger); }
+
+  .empty { padding: 22px 14px; color: var(--dim); text-align: center;
+           font-size: 13px; }
+  .empty code { font-family: var(--mono); font-size: 12px; }
+
+  /* ── formulário ───────────────────────────────────────────── */
+  form.new { display: grid; gap: 8px; }
+  input, select {
+    font: inherit; width: 100%; padding: 6px 9px; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  }
+  input:focus, select:focus { outline: 2px solid var(--link); outline-offset: -1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .err { color: var(--danger); font-size: 12.5px; padding: 8px 0 0; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button[aria-selected="true"] { background: var(--panel2);
+    border-color: var(--dim); color: var(--text); }
+  .stack { display: grid; gap: 14px; }
+  .hint { color: var(--dim); font-size: 12px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div class="brand">Asaas Mock <small>painel</small></div>
+    <div class="clock">
+      <span class="today" id="clock">…</span>
+      <button data-adv="1">+1 dia</button>
+      <button data-adv="7">+7</button>
+      <button data-adv="32" title="D+32: o dia em que o cartão credita">+32</button>
+      <button id="tick" title="Roda os jobs sem mexer no relógio">tick</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <div class="stack">
+      <section class="card">
+        <h2>Contas <span class="count" id="acct-count"></span></h2>
+        <div id="accounts"><div class="empty">carregando…</div></div>
+      </section>
+
+      <section class="card">
+        <h2>Nova subconta</h2>
+        <div class="body">
+          <form class="new" id="new-sub">
+            <input name="name" placeholder="Nome" required />
+            <div class="row2">
+              <input name="cpfCnpj" placeholder="CPF/CNPJ" required />
+              <input name="mobilePhone" placeholder="Celular" value="47996321478" />
+            </div>
+            <input name="email" type="email" placeholder="E-mail" required />
+            <div class="row2">
+              <input name="postalCode" placeholder="CEP" value="14079-452" />
+              <input name="incomeValue" type="number" placeholder="Renda/faturamento" value="25000" />
+            </div>
+            <button class="primary" type="submit">Criar subconta</button>
+          </form>
+          <div class="err" id="new-sub-err" hidden></div>
+          <p class="hint">
+            A subconta nasce com <b>walletId</b> e <b>chave de API próprios</b>. É o que
+            faz o split mover dinheiro de verdade: sem duas contas autenticáveis, o
+            walletId de destino seria uma string sem dono.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack" id="detail">
+      <div class="card"><div class="empty">selecione uma conta</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+const $ = (s, r = document) => r.querySelector(s)
+const money = (v) =>
+  (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+/** Estado da tela. Pequeno o bastante para não precisar de framework. */
+const state = { accounts: [], selected: null, tab: 'payments', detail: {} }
+
+// ── HTTP ────────────────────────────────────────────────────────────────────
+async function admin(path, opts) {
+  const r = await fetch('/_admin' + path, {
+    headers: { 'content-type': 'application/json' },
+    ...opts,
+  })
+  const b = await r.json().catch(() => null)
+  if (!r.ok) throw new Error(b?.errors?.[0]?.description ?? `HTTP ${r.status}`)
+  return b
+}
+
+/**
+ * Chama a API v3 do Asaas COMO a conta selecionada.
+ *
+ * É o ponto do painel: cada conta tem a sua chave, e olhar o simulador pelos
+ * olhos de uma subconta é a única forma de ver que ela é de fato isolada — ela
+ * não enxerga as cobranças do pai.
+ */
+async function v3(path, key, opts) {
+  const r = await fetch('/v3' + path, {
+    headers: { access_token: key, 'content-type': 'application/json' },
+    ...opts,
+  })
+  const b = await r.json().catch(() => null)
+  if (!r.ok) throw new Error(b?.errors?.[0]?.description ?? `HTTP ${r.status}`)
+  return b
+}
+
+// ── relógio ─────────────────────────────────────────────────────────────────
+async function loadClock() {
+  const c = await admin('/clock')
+  const virtual = c.mode !== 'REAL'
+  $('#clock').innerHTML =
+    `<b>${c.today}</b> · ${c.mode}` +
+    (virtual ? '' : ' <span title="Suba com CLOCK_MODE=VIRTUAL_FROZEN para viajar no tempo">⚠</span>')
+
+  // Sem relógio virtual não há viagem no tempo — e o botão que não funciona
+  // deve DIZER que não funciona, não falhar quando clicado.
+  for (const b of document.querySelectorAll('[data-adv]')) {
+    b.disabled = !virtual
+    b.title = virtual
+      ? b.title
+      : 'O relógio está em modo REAL. Suba com CLOCK_MODE=VIRTUAL_FROZEN.'
+  }
+}
+
+async function advance(days) {
+  const btns = [...document.querySelectorAll('header button')]
+  btns.forEach((b) => (b.disabled = true))
+  try {
+    await admin('/clock/advance', { method: 'POST', body: JSON.stringify({ days }) })
+    await refresh()
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    btns.forEach((b) => (b.disabled = false))
+    await loadClock()
+  }
+}
+
+// ── contas ──────────────────────────────────────────────────────────────────
+async function loadAccounts() {
+  const { accounts } = await admin('/accounts')
+  state.accounts = accounts
+  if (!state.selected || !accounts.some((a) => a.id === state.selected)) {
+    state.selected = accounts.find((a) => !a.parentAccountId)?.id ?? accounts[0]?.id
+  }
+  renderAccounts()
+}
+
+function renderAccounts() {
+  const el = $('#accounts')
+  $('#acct-count').textContent = state.accounts.length
+
+  el.innerHTML = state.accounts
+    .map((a) => {
+      const main = !a.parentAccountId
+      return `
+      <button class="acct" data-id="${a.id}" aria-current="${a.id === state.selected}">
+        <div class="top">
+          <span class="nm">${esc(a.name)}</span>
+          <span class="tag ${main ? 'main' : ''}">${main ? 'principal' : 'subconta'}</span>
+          <span class="bal ${a.balance < 0 ? 'neg' : ''}">${money(a.balance)}</span>
+        </div>
+        <div class="sub">${a.walletId.slice(0, 8)}… · ${esc(a.email)}</div>
+      </button>`
+    })
+    .join('')
+
+  for (const b of el.querySelectorAll('.acct')) {
+    b.onclick = () => {
+      state.selected = b.dataset.id
+      renderAccounts()
+      loadDetail()
+    }
+  }
+}
+
+// ── detalhe da conta ────────────────────────────────────────────────────────
+async function loadDetail() {
+  const a = state.accounts.find((x) => x.id === state.selected)
+  if (!a) return
+
+  renderDetail(a, null)
+  try {
+    const [payments, extract] = await Promise.all([
+      v3('/payments?limit=15', a.apiKey),
+      v3('/financialTransactions?limit=15', a.apiKey).catch(() => ({ data: [] })),
+    ])
+    state.detail = { payments: payments.data ?? [], extract: extract.data ?? [] }
+  } catch (e) {
+    state.detail = { error: e.message }
+  }
+  renderDetail(a, state.detail)
+}
+
+function renderDetail(a, d) {
+  const rows =
+    state.tab === 'payments'
+      ? paymentRows(d?.payments)
+      : extractRows(d?.extract)
+
+  $('#detail').innerHTML = `
+    <section class="card">
+      <h2>${esc(a.name)}</h2>
+      <div class="body">
+        <dl class="kv">
+          <dt>Saldo</dt><dd><b>${money(a.balance)}</b></dd>
+          <dt>walletId</dt><dd>${a.walletId} ${copyBtn(a.walletId)}</dd>
+          <dt>Chave de API</dt><dd>${mask(a.apiKey)} ${copyBtn(a.apiKey)}</dd>
+          <dt>accountId</dt><dd>${a.id}</dd>
+          <dt>CPF/CNPJ</dt><dd>${a.cpfCnpj ?? '—'}</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>
+        <span class="tabs">
+          <button data-tab="payments" aria-selected="${state.tab === 'payments'}">Cobranças</button>
+          <button data-tab="extract"  aria-selected="${state.tab === 'extract'}">Extrato</button>
+        </span>
+      </h2>
+      ${d?.error ? `<div class="empty">${esc(d.error)}</div>` : rows}
+    </section>`
+
+  for (const b of $('#detail').querySelectorAll('[data-tab]')) {
+    b.onclick = () => {
+      state.tab = b.dataset.tab
+      renderDetail(a, state.detail)
+    }
+  }
+  for (const b of $('#detail').querySelectorAll('[data-copy]')) {
+    b.onclick = () => {
+      navigator.clipboard.writeText(b.dataset.copy)
+      b.textContent = 'copiado'
+      setTimeout(() => (b.textContent = 'copiar'), 1200)
+    }
+  }
+}
+
+function paymentRows(list) {
+  if (!list) return `<div class="empty">carregando…</div>`
+  if (!list.length) {
+    return `<div class="empty">
+      Nenhuma cobrança nesta conta.<br />
+      <code>POST /v3/payments</code> com a chave acima.
+    </div>`
+  }
+  return `<table>
+    <thead><tr>
+      <th>Cobrança</th><th>Tipo</th><th>Status</th>
+      <th>Vence</th><th>Crédito</th>
+      <th class="num">Valor</th><th class="num">Líquido</th>
+    </tr></thead>
+    <tbody>${list
+      .map(
+        (p) => `<tr>
+        <td>${p.id}</td>
+        <td>${p.billingType}</td>
+        <td><span class="st st-${p.status}">${p.status}</span></td>
+        <td>${p.dueDate}</td>
+        <td>${p.creditDate ?? '—'}</td>
+        <td class="num">${money(p.value)}</td>
+        <td class="num">${money(p.netValue)}</td>
+      </tr>`,
+      )
+      .join('')}</tbody>
+  </table>`
+}
+
+function extractRows(list) {
+  if (!list) return `<div class="empty">carregando…</div>`
+  if (!list.length) {
+    return `<div class="empty">
+      Extrato vazio. O saldo só se move por lançamento —
+      cobre uma cobrança e avance o relógio.
+    </div>`
+  }
+  return `<table>
+    <thead><tr>
+      <th>Data</th><th>Tipo</th><th>Descrição</th>
+      <th class="num">Valor</th><th class="num">Saldo</th>
+    </tr></thead>
+    <tbody>${list
+      .map(
+        (t) => `<tr>
+        <td>${t.date ?? '—'}</td>
+        <td>${t.type}</td>
+        <td style="white-space:normal">${esc(t.description ?? '')}</td>
+        <td class="num" style="color:${t.value < 0 ? 'var(--danger)' : 'var(--accent)'}">
+          ${money(t.value)}
+        </td>
+        <td class="num">${money(t.balance)}</td>
+      </tr>`,
+      )
+      .join('')}</tbody>
+  </table>`
+}
+
+// ── criar subconta ──────────────────────────────────────────────────────────
+$('#new-sub').onsubmit = async (ev) => {
+  ev.preventDefault()
+  const form = ev.target
+  const err = $('#new-sub-err')
+  err.hidden = true
+
+  // A subconta é criada COM A CHAVE DA CONTA PRINCIPAL — é ela a mãe.
+  const parent = state.accounts.find((a) => !a.parentAccountId)
+  const f = Object.fromEntries(new FormData(form))
+
+  form.querySelector('button').disabled = true
+  try {
+    await v3('/accounts', parent.apiKey, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: f.name,
+        email: f.email,
+        cpfCnpj: f.cpfCnpj,
+        mobilePhone: f.mobilePhone,
+        incomeValue: Number(f.incomeValue),
+        address: 'Rua Exemplo',
+        addressNumber: '100',
+        province: 'Centro',
+        postalCode: f.postalCode,
+      }),
+    })
+    form.reset()
+    await loadAccounts()
+  } catch (e) {
+    err.textContent = e.message
+    err.hidden = false
+  } finally {
+    form.querySelector('button').disabled = false
+  }
+}
+
+// ── util ────────────────────────────────────────────────────────────────────
+const esc = (s) =>
+  String(s ?? '').replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+  )
+const mask = (k) => (k ? esc(k.slice(0, 22)) + '…' : '—')
+const copyBtn = (v) => `<button class="ghost" data-copy="${esc(v)}">copiar</button>`
+
+async function refresh() {
+  await loadAccounts()
+  await loadDetail()
+}
+
+for (const b of document.querySelectorAll('[data-adv]')) {
+  b.onclick = () => advance(Number(b.dataset.adv))
+}
+$('#tick').onclick = async () => {
+  await admin('/tick', { method: 'POST' })
+  await refresh()
+}
+
+await loadClock()
+await refresh()
+</script>
+</body>
+</html>

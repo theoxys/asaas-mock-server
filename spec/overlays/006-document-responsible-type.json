@@ -1,0 +1,15 @@
+{
+  "_why": "A spec declara `responsible.type` do documento de KYC como ARRAY. O Asaas real devolve uma STRING.\n\nProvado contra o sandbox real:\n  GET /v3/myAccount/documents\n  → { \"data\": [ { \"responsible\": { \"name\": \"Pr Soluções Sandbox\", \"type\": \"INDIVIDUAL_COMPANY\" } } ] }\n\nE a spec se contradiz sozinha, o que confirma qual lado está errado: o campo é declarado `\"type\": \"array\"`, mas o `example` dele é o ESCALAR `\"ASSOCIATION\"`, e o `enum` está pendurado no array em vez de nos `items`. É a assinatura do bug do gerador de spec do Asaas — o mesmo que progress.md já cataloga em outros seis DTOs.\n\nSem este overlay o estrago é sutil e caro: nós devolvemos a string CERTA, e a nossa própria validação de contrato — gerada da spec — rejeitava a resposta. O simulador ficava obrigado a escolher entre estar certo e passar no próprio contrato.",
+  "_source": "captura contra sandbox.asaas.com/api/v3 em 2026-07-14 (GET /myAccount/documents)",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/components/schemas/AccountDocumentResponsibleResponseDTO/properties/type",
+      "value": {
+        "description": "Responsible type",
+        "example": "ASSOCIATION",
+        "$ref": "#/components/schemas/AccountDocumentResponsibleResponseAccountDocumentResponsibleType"
+      }
+    }
+  ]
+}

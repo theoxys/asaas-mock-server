@@ -1,0 +1,32 @@
+# A PRIMEIRA linha é a que importa: o README manda `cp .env.example .env`, então
+# numa máquina qualquer existe um .env com uma CHAVE DE API DE VERDADE dentro. Sem
+# esta linha, o `COPY . .` do estágio de build a leva para dentro da imagem. Ela
+# não sobreviveria ao multi-stage (o runtime copia só src/, drizzle/, spec/), mas
+# ficaria no cache do builder — e bastaria alguém trocar o COPY seletivo por um
+# `COPY --from=build /app .` para a chave sair publicada no Docker Hub.
+.env
+.env.*
+!.env.example
+
+# Bancos locais: um asaas.db esquecido aqui viraria "estado de fábrica" da imagem.
+*.db
+*.db-shm
+*.db-wal
+
+# tests/golden NÃO entra nesta lista, por mais tentador que pareça: o build roda
+# `tsc --noEmit`, o tsconfig inclui `tests`, e a suíte de paridade importa
+# `tests/golden/scenarios.ts`. Excluí-lo quebra o build. (Os goldens são respostas
+# capturadas do sandbox e não contêm chave de API — foi verificado.)
+
+# Peso morto: 94 MB de node_modules que o estágio `deps` reinstala do zero a partir
+# do lockfile, e um .git que ninguém lê em tempo de build.
+node_modules/
+.git/
+.github/
+
+# Ruído
+.DS_Store
+*.log
+coverage/
+.vscode/
+.idea/

@@ -1,0 +1,203 @@
+{
+  "scenario": "assinatura-mensal",
+  "description": "A regra mais contraintuitiva: criar a assinatura NÃO cria cobrança. Ela só nasce quando faltam 40 dias para o vencimento. Se a listagem vier vazia no sandbox real, nossa leitura da doc está certa.",
+  "capturedAt": "2026-07-14T06:46:18.837Z",
+  "anchorDate": "2026-07-14",
+  "source": "asaas-sandbox",
+  "steps": [
+    {
+      "step": {
+        "label": "cria cliente",
+        "operationId": "create-new-customer",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        },
+        "capture": {
+          "customerId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/customers",
+        "body": {
+          "name": "Cliente Paridade",
+          "cpfCnpj": "24971563792",
+          "email": "paridade@example.com",
+          "mobilePhone": "47996321478"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "customer",
+          "id": "cus_000008392501",
+          "dateCreated": "2026-07-14",
+          "name": "Cliente Paridade",
+          "email": "paridade@example.com",
+          "company": null,
+          "phone": null,
+          "mobilePhone": "47996321478",
+          "address": null,
+          "addressNumber": null,
+          "complement": null,
+          "province": null,
+          "postalCode": null,
+          "cpfCnpj": "24971563792",
+          "personType": "FISICA",
+          "deleted": false,
+          "additionalEmails": null,
+          "externalReference": null,
+          "notificationDisabled": false,
+          "observations": null,
+          "municipalInscription": null,
+          "stateInscription": null,
+          "canDelete": true,
+          "cannotBeDeletedReason": null,
+          "canEdit": true,
+          "cannotEditReason": null,
+          "city": null,
+          "cityName": null,
+          "state": null,
+          "country": "Brasil"
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "cria assinatura mensal com vencimento em 60 dias",
+        "operationId": "create-new-subscription",
+        "body": {
+          "customer": "$customerId",
+          "billingType": "BOLETO",
+          "value": 100,
+          "nextDueDate": "$hoje+60",
+          "cycle": "MONTHLY"
+        },
+        "capture": {
+          "subscriptionId": "id"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "path": "/v3/subscriptions",
+        "body": {
+          "customer": "cus_000008392501",
+          "billingType": "BOLETO",
+          "value": 100,
+          "nextDueDate": "2026-09-12",
+          "cycle": "MONTHLY"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "subscription",
+          "id": "sub_q2wj21zdr7fbj53v",
+          "dateCreated": "2026-07-14",
+          "customer": "cus_000008392501",
+          "paymentLink": null,
+          "value": 100,
+          "nextDueDate": "2026-10-12",
+          "cycle": "MONTHLY",
+          "description": null,
+          "billingType": "BOLETO",
+          "deleted": false,
+          "status": "ACTIVE",
+          "externalReference": null,
+          "checkoutSession": null,
+          "sendPaymentByPostalService": false,
+          "fine": {
+            "value": 0,
+            "type": "FIXED"
+          },
+          "interest": {
+            "value": 0,
+            "type": "PERCENTAGE"
+          },
+          "split": null
+        }
+      }
+    },
+    {
+      "step": {
+        "label": "as cobranças da assinatura — esperamos ZERO (faltam 60 dias > 40)",
+        "operationId": "list-payments-of-a-subscription",
+        "params": {
+          "id": "$subscriptionId"
+        }
+      },
+      "request": {
+        "method": "GET",
+        "path": "/v3/subscriptions/sub_q2wj21zdr7fbj53v/payments"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "list",
+          "hasMore": false,
+          "totalCount": 1,
+          "limit": 10,
+          "offset": 0,
+          "data": [
+            {
+              "object": "payment",
+              "id": "pay_oooy25xakbxpf2z2",
+              "dateCreated": "2026-07-14",
+              "customer": "cus_000008392501",
+              "subscription": "sub_q2wj21zdr7fbj53v",
+              "checkoutSession": null,
+              "paymentLink": null,
+              "value": 100,
+              "netValue": 98.01,
+              "originalValue": null,
+              "interestValue": null,
+              "description": null,
+              "billingType": "BOLETO",
+              "canBePaidAfterDueDate": true,
+              "pixTransaction": null,
+              "status": "PENDING",
+              "dueDate": "2026-09-12",
+              "originalDueDate": "2026-09-12",
+              "paymentDate": null,
+              "clientPaymentDate": null,
+              "installmentNumber": null,
+              "invoiceUrl": "https://sandbox.asaas.com/i/oooy25xakbxpf2z2",
+              "invoiceNumber": "15924732",
+              "externalReference": null,
+              "deleted": false,
+              "anticipated": false,
+              "anticipable": false,
+              "creditDate": null,
+              "estimatedCreditDate": null,
+              "transactionReceiptUrl": null,
+              "nossoNumero": "12745162",
+              "bankSlipUrl": "https://sandbox.asaas.com/b/pdf/oooy25xakbxpf2z2",
+              "lastInvoiceViewedDate": null,
+              "lastBankSlipViewedDate": null,
+              "discount": {
+                "value": 0,
+                "limitDate": null,
+                "dueDateLimitDays": 0,
+                "type": "FIXED"
+              },
+              "fine": {
+                "value": 0,
+                "type": "FIXED"
+              },
+              "interest": {
+                "value": 0,
+                "type": "PERCENTAGE"
+              },
+              "postalService": false,
+              "escrow": null,
+              "refunds": null
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
