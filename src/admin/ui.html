@@ -4,155 +4,355 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Asaas Mock — painel</title>
+
+<!--
+  A Geist é a fonte do Atlas (o design system do Asaas). Carregada de forma NÃO
+  bloqueante: o simulador precisa subir num CI sem rede, e um `<link>` normal para
+  o Google Fonts congelaria a renderização até o DNS falhar. Com `media="print"`
+  a folha entra fora do caminho crítico e a página abre na hora — se a rede não
+  existir, a cadeia de fallback assume e o painel continua legível.
+-->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  media="print"
+  onload="this.media='all'"
+  href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap"
+/>
+
 <style>
   /*
    * Sem build step, sem CDN, sem dependência.
    *
-   * Este arquivo é servido pelo próprio simulador dentro do container — uma
-   * toolchain de frontend aqui significaria um segundo estágio de build no
-   * Dockerfile para uma tela de dev. Não vale.
+   * As cores, raios e espaçamentos abaixo são os tokens SEMÂNTICOS do Atlas
+   * (@asaasdev/atlas), o design system do próprio Asaas — reproduzidos aqui à mão
+   * porque puxar o pacote inteiro (~1MB, quase todo editor de texto rico e uma
+   * fonte de ícones embutida) para uma tela de dev não se paga.
+   *
+   * A regra que faz isto continuar parecendo Asaas: o CSS abaixo consome os nomes
+   * semânticos (--surface-*, --text-*, --border-*), nunca as primitivas de cor
+   * diretamente. Trocar o azul é trocar uma linha.
    */
   :root {
-    --bg: #0e1116;      --panel: #161b22;   --panel2: #1c232c;
-    --line: #2a323c;    --text: #e6edf3;    --dim: #8b98a5;
-    --accent: #3fb950;  --accent-dim: #23863640;
-    --warn: #d29922;    --danger: #f85149;  --link: #58a6ff;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    /* primitivas — Persian Blue é o azul do Asaas */
+    --blue-50: #d6eaff;  --blue-100: #c7e0ff; --blue-400: #1f61ff;
+    --blue-500: #0038e5; --blue-600: #0036b8; --blue-700: #002f8a;
+    --sky-10: #fcfcfd;   --sky-30: #f7f8fa;   --sky-50: #f2f4f7;
+    --sky-100: #e5e8ec;  --sky-200: #d1d6dc;  --sky-400: #9aa4b3;
+    --sky-600: #5e6877;  --sky-800: #2f363f;  --sky-900: #1d2125;
+    --green-50: #e8f3ee; --green-600: #146c43;
+    --red-50: #fcebec;   --red-500: #dc3545;  --red-600: #b02a37;
+    --amber-50: #fff7e6; --amber-600: #b45309;
+
+    /* semânticos — é isto que o resto da folha usa */
+    --page: var(--sky-30);
+    --surface: var(--sky-10);
+    --surface-soft: var(--sky-50);
+    --surface-hover: var(--sky-100);
+    --border: var(--sky-200);
+    --text: var(--sky-900);
+    --text-medium: var(--sky-600);
+    --primary: var(--blue-500);
+    --primary-hover: var(--blue-600);
+    --primary-pressed: var(--blue-700);
+    --primary-soft: var(--blue-50);
+    --focus: var(--blue-400);
+
+    /* espaçamento, raio, tipografia */
+    --pad-xs: 8px;  --pad-sm: 12px; --pad-md: 16px;
+    --pad-lg: 20px; --pad-xl: 24px; --pad-2xl: 32px;
+    --radius-card: 24px;   /* container-md  — cards e painéis  */
+    --radius-input: 12px;  /* composite-md  — inputs           */
+    --radius-sm: 8px;
+    --radius-pill: 999px;  /* botão do Atlas é pílula          */
+
+    --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  @media (prefers-color-scheme: light) {
+
+  /*
+   * Modo escuro: o Asaas é um produto claro, mas o painel vive no monitor de um dev
+   * às 23h. Aqui só os tokens semânticos são reatribuídos — o azul da marca e toda a
+   * geometria (raios, paddings, pílulas) seguem idênticos, então continua sendo Atlas.
+   */
+  @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #f6f8fa;    --panel: #fff;      --panel2: #f0f3f6;
-      --line: #d8dee4;  --text: #1f2328;    --dim: #656d76;
-      --accent: #1a7f37; --accent-dim: #2da44e1a;
-      --warn: #9a6700;  --danger: #cf222e;  --link: #0969da;
+      --page: #14181d;
+      --surface: #1a1f26;
+      --surface-soft: #20262e;
+      --surface-hover: #262d36;
+      --border: #313a45;
+      --text: #eef1f4;
+      --text-medium: #9aa4b3;
+      --primary: #3d6dff;
+      --primary-hover: #5680ff;
+      --primary-pressed: #1f61ff;
+      --primary-soft: #1b2a52;
+      --green-50: #14301f;  --green-600: #4ade80;
+      --red-50: #3a1d20;    --red-500: #f26d78;  --red-600: #f26d78;
+      --amber-50: #3a2c12;  --amber-600: #f0b849;
     }
   }
+
   * { box-sizing: border-box; }
+
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 150%;
+    -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--link); }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+  a { color: var(--primary); }
+
+  /* O Atlas reduz a escala tipográfica inteira num degrau abaixo de 992px. */
+  @media (max-width: 992px) { body { font-size: 14px; } }
+
+  /* Foco do Atlas é OUTLINE, nunca box-shadow. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: var(--pad-xl) var(--pad-md) 64px; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
   /* ── barra do relógio ─────────────────────────────────────── */
   header {
     position: sticky; top: 0; z-index: 10;
-    background: var(--panel); border-bottom: 1px solid var(--line);
-    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: var(--pad-sm) var(--pad-md);
   }
-  .hdr { max-width: 1180px; margin: 0 auto; display: flex; gap: 16px;
-         align-items: center; flex-wrap: wrap; }
-  .brand { font-weight: 600; letter-spacing: -.01em; }
-  .brand small { color: var(--dim); font-weight: 400; margin-left: 6px; }
-  .clock { margin-left: auto; display: flex; gap: 8px; align-items: center;
-           flex-wrap: wrap; }
-  .today { font-family: var(--mono); font-size: 13px; padding: 4px 10px;
-           background: var(--panel2); border: 1px solid var(--line);
-           border-radius: 6px; }
-  .today b { color: var(--accent); }
+  .hdr {
+    max-width: 1240px; margin: 0 auto;
+    display: flex; gap: var(--pad-md); align-items: center; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .brand svg { flex: none; }
+  .brand small {
+    color: var(--text-medium); font-weight: 400; font-size: 14px;
+    padding-left: 10px; margin-left: 2px; border-left: 1px solid var(--border);
+  }
+  .clock { margin-left: auto; display: flex; gap: var(--pad-xs); align-items: center; flex-wrap: wrap; }
+  .today {
+    font-family: var(--mono); font-size: 14px; line-height: 100%;
+    padding: 9px var(--pad-sm);
+    background: var(--surface-soft); border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .today b { color: var(--primary); font-weight: 500; }
 
-  /* ── botões ───────────────────────────────────────────────── */
+  /* ── botões (pílula, como no Atlas) ───────────────────────── */
   button {
-    font: inherit; cursor: pointer; color: var(--text);
-    background: var(--panel2); border: 1px solid var(--line);
-    border-radius: 6px; padding: 5px 11px;
+    font-family: var(--font); font-size: 14px; font-weight: 500; line-height: 100%;
+    cursor: pointer; color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    padding: 11px var(--pad-md);
+    transition: background-color .12s ease, border-color .12s ease;
   }
-  button:hover:not(:disabled) { border-color: var(--dim); }
-  button:disabled { opacity: .45; cursor: progress; }
-  button.primary { background: var(--accent); border-color: var(--accent);
-                   color: #fff; font-weight: 500; }
-  button.primary:hover:not(:disabled) { filter: brightness(1.1); }
-  button.ghost { background: none; padding: 3px 7px; font-size: 12px;
-                 color: var(--dim); }
+  button:hover:not(:disabled) { background: var(--surface-hover); }
+  button:active:not(:disabled) { background: var(--surface-soft); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  button.primary {
+    background: var(--primary); border-color: var(--primary); color: #fff;
+  }
+  button.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+  button.primary:active:not(:disabled) { background: var(--primary-pressed); border-color: var(--primary-pressed); }
+
+  button.ghost {
+    background: none; border-color: transparent; color: var(--primary);
+    padding: 4px var(--pad-xs); font-size: 12px;
+  }
+  button.ghost:hover:not(:disabled) { background: var(--primary-soft); }
 
   /* ── cartões ──────────────────────────────────────────────── */
-  .grid { display: grid; gap: 14px; grid-template-columns: 340px 1fr;
-          align-items: start; }
-  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
-
-  .card { background: var(--panel); border: 1px solid var(--line);
-          border-radius: 10px; overflow: hidden; }
-  .card > h2 {
-    margin: 0; padding: 11px 14px; font-size: 12px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: .06em; color: var(--dim);
-    border-bottom: 1px solid var(--line); display: flex; align-items: center;
-    gap: 8px;
+  .grid {
+    display: grid; gap: var(--pad-md);
+    grid-template-columns: 360px 1fr; align-items: start;
   }
-  .card > h2 .count { margin-left: auto; font-weight: 400; }
-  .body { padding: 12px 14px; }
+  @media (max-width: 992px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .card > h2 {
+    margin: 0; padding: var(--pad-md) var(--pad-lg);
+    font-size: 16px; font-weight: 500; line-height: 130%;  /* heading-6 do Atlas */
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: var(--pad-xs);
+  }
+  .card > h2 .count {
+    margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-medium);
+    background: var(--surface-soft); border-radius: var(--radius-pill);
+    padding: 2px var(--pad-xs); min-width: 22px; text-align: center;
+  }
+  .body { padding: var(--pad-lg); }
 
   /* ── contas ───────────────────────────────────────────────── */
   .acct {
-    padding: 11px 14px; border-bottom: 1px solid var(--line);
+    padding: var(--pad-sm) var(--pad-lg);
+    border: 0; border-bottom: 1px solid var(--border);
+    border-radius: 0; background: none;
     cursor: pointer; display: block; width: 100%; text-align: left;
-    background: none; border-radius: 0; border-left: 2px solid transparent;
+    box-shadow: inset 3px 0 0 transparent;
   }
   .acct:last-child { border-bottom: 0; }
-  .acct:hover { background: var(--panel2); }
+  .acct:hover { background: var(--surface-hover); }
   .acct[aria-current="true"] {
-    background: var(--accent-dim); border-left-color: var(--accent);
+    background: var(--primary-soft);
+    box-shadow: inset 3px 0 0 var(--primary);
   }
-  .acct .top { display: flex; align-items: baseline; gap: 8px; }
-  .acct .nm { font-weight: 500; }
-  .acct .bal { margin-left: auto; font-family: var(--mono); font-size: 13px; }
-  .acct .bal.neg { color: var(--danger); }
-  .acct .sub { color: var(--dim); font-size: 12px; font-family: var(--mono);
-               margin-top: 2px; }
-  .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
-         padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line);
-         color: var(--dim); }
-  .tag.main { border-color: var(--accent); color: var(--accent); }
+  .acct .top { display: flex; align-items: center; gap: var(--pad-xs); }
+  .acct .nm { font-weight: 500; font-size: 14px; }
+  .acct .bal {
+    margin-left: auto; font-family: var(--mono); font-size: 14px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .acct .bal.neg { color: var(--red-600); }
+  .acct .sub {
+    color: var(--text-medium); font-size: 12px; font-family: var(--mono);
+    margin-top: 3px;
+  }
+
+  .tag {
+    font-size: 11px; font-weight: 500; line-height: 100%;
+    padding: 4px var(--pad-xs); border-radius: var(--radius-pill);
+    background: var(--surface-soft); color: var(--text-medium);
+  }
+  .tag.main { background: var(--primary-soft); color: var(--primary); }
 
   /* ── detalhe ──────────────────────────────────────────────── */
-  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px;
-        font-size: 13px; }
-  .kv dt { color: var(--dim); }
-  .kv dd { margin: 0; font-family: var(--mono); word-break: break-all;
-           display: flex; gap: 6px; align-items: flex-start; }
+  .kv {
+    display: grid; grid-template-columns: 120px 1fr;
+    gap: var(--pad-sm) var(--pad-md); font-size: 14px; margin: 0;
+  }
+  .kv dt { color: var(--text-medium); }
+  .kv dd {
+    margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums;
+    word-break: break-all; display: flex; gap: 6px; align-items: center;
+  }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--dim); font-weight: 500; font-size: 11px;
-       text-transform: uppercase; letter-spacing: .05em;
-       padding: 8px 14px; border-bottom: 1px solid var(--line); }
-  td { padding: 8px 14px; border-bottom: 1px solid var(--line);
-       font-family: var(--mono); font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left; color: var(--text-medium); font-weight: 500; font-size: 12px;
+    padding: var(--pad-xs) var(--pad-md);
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: var(--pad-sm) var(--pad-md); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
   tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--surface-soft); }
+  /* Alinha a coluna de borda com o padding do card — sem isto a tabela "vaza"
+     4px para dentro da margem e o título do cartão não bate com a 1ª célula. */
+  th:first-child, td:first-child { padding-left: var(--pad-lg); }
+  th:last-child, td:last-child { padding-right: var(--pad-lg); }
   td.num { text-align: right; }
+  td.pos { color: var(--green-600); }
+  td.neg { color: var(--red-600); }
 
-  .st { font-size: 11px; padding: 1px 6px; border-radius: 4px;
-        border: 1px solid currentColor; }
-  .st-PENDING, .st-AUTHORIZED { color: var(--dim); }
-  .st-CONFIRMED { color: var(--warn); }
-  .st-RECEIVED, .st-RECEIVED_IN_CASH, .st-DONE, .st-SUCCESS { color: var(--accent); }
-  .st-OVERDUE, .st-FAILED, .st-REFUNDED { color: var(--danger); }
+  /* Status: no Atlas o estado é um chip de fundo suave, não texto colorido. */
+  .st {
+    font-size: 11px; font-weight: 500; line-height: 100%; font-family: var(--font);
+    padding: 4px var(--pad-xs); border-radius: var(--radius-pill);
+    background: var(--surface-soft); color: var(--text-medium);
+    display: inline-block;
+  }
+  .st-CONFIRMED, .st-AWAITING_CREDIT, .st-PENDING_ANTICIPATION {
+    background: var(--amber-50); color: var(--amber-600);
+  }
+  .st-RECEIVED, .st-RECEIVED_IN_CASH, .st-DONE, .st-SUCCESS, .st-CONFIRMED_ANTICIPATION {
+    background: var(--green-50); color: var(--green-600);
+  }
+  .st-OVERDUE, .st-FAILED, .st-REFUNDED, .st-CANCELLED, .st-BLOCKED_BY_VALUE_DIVERGENCE {
+    background: var(--red-50); color: var(--red-600);
+  }
 
-  .empty { padding: 22px 14px; color: var(--dim); text-align: center;
-           font-size: 13px; }
-  .empty code { font-family: var(--mono); font-size: 12px; }
+  .empty {
+    padding: var(--pad-2xl) var(--pad-lg); color: var(--text-medium);
+    text-align: center; font-size: 14px; line-height: 150%;
+  }
+  .empty code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--surface-soft); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 2px 6px;
+  }
 
   /* ── formulário ───────────────────────────────────────────── */
-  form.new { display: grid; gap: 8px; }
-  input, select {
-    font: inherit; width: 100%; padding: 6px 9px; color: var(--text);
-    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
-  }
-  input:focus, select:focus { outline: 2px solid var(--link); outline-offset: -1px; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  form.new { display: grid; gap: var(--pad-sm); }
+  label.field { display: grid; gap: 6px; }
+  label.field > span { font-size: 12px; font-weight: 500; color: var(--text-medium); }
 
-  .err { color: var(--danger); font-size: 12.5px; padding: 8px 0 0; }
-  .tabs { display: flex; gap: 4px; }
-  .tabs button[aria-selected="true"] { background: var(--panel2);
-    border-color: var(--dim); color: var(--text); }
-  .stack { display: grid; gap: 14px; }
-  .hint { color: var(--dim); font-size: 12px; margin-top: 10px; }
+  input, select {
+    font-family: var(--font); font-size: 14px; width: 100%;
+    height: 40px; padding: var(--pad-xs) var(--pad-sm);
+    color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-input);
+  }
+  input::placeholder { color: var(--text-medium); }
+  input:hover:not(:focus) { border-color: var(--sky-400); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--pad-sm); }
+  form.new button[type="submit"] { margin-top: var(--pad-xs); width: 100%; }
+
+  .err {
+    color: var(--red-600); background: var(--red-50);
+    border-radius: var(--radius-input); padding: var(--pad-sm);
+    font-size: 13px; margin-top: var(--pad-sm);
+  }
+
+  /* Abas: controle segmentado, o mesmo formato de pílula dos botões. */
+  .tabs {
+    display: inline-flex; gap: 2px; padding: 3px;
+    background: var(--surface-soft); border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+  }
+  .tabs button {
+    border: 0; background: none; padding: 7px var(--pad-sm);
+    font-size: 13px; color: var(--text-medium);
+  }
+  .tabs button:hover { background: transparent; color: var(--text); }
+  .tabs button[aria-selected="true"] {
+    background: var(--surface); color: var(--text);
+    box-shadow: 0 1px 2px rgb(29 33 37 / 8%);
+  }
+
+  .stack { display: grid; gap: var(--pad-md); }
+  .hint {
+    color: var(--text-medium); font-size: 13px; line-height: 150%;
+    margin: var(--pad-md) 0 0;
+  }
+  .hint b { color: var(--text); font-weight: 500; }
 </style>
 </head>
 <body>
 
 <header>
   <div class="hdr">
-    <div class="brand">Asaas Mock <small>painel</small></div>
+    <div class="brand">
+      <!-- Marca geométrica no azul do Asaas. Não é o logotipo oficial de
+           propósito: isto é um simulador, e não deve se passar pelo produto. -->
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+        <rect width="26" height="26" rx="8" fill="var(--primary)" />
+        <path d="M7 17.5c0-4 2.5-9 6-9s6 5 6 9" stroke="#fff" stroke-width="2.4"
+              stroke-linecap="round" fill="none" />
+        <circle cx="13" cy="13.5" r="1.8" fill="#fff" />
+      </svg>
+      Asaas Mock <small>painel</small>
+    </div>
     <div class="clock">
       <span class="today" id="clock">…</span>
       <button data-adv="1">+1 dia</button>
@@ -176,15 +376,33 @@
         <h2>Nova subconta</h2>
         <div class="body">
           <form class="new" id="new-sub">
-            <input name="name" placeholder="Nome" required />
+            <label class="field">
+              <span>Nome</span>
+              <input name="name" placeholder="Loja do João" required />
+            </label>
             <div class="row2">
-              <input name="cpfCnpj" placeholder="CPF/CNPJ" required />
-              <input name="mobilePhone" placeholder="Celular" value="47996321478" />
+              <label class="field">
+                <span>CPF/CNPJ</span>
+                <input name="cpfCnpj" placeholder="000.000.000-00" required />
+              </label>
+              <label class="field">
+                <span>Celular</span>
+                <input name="mobilePhone" value="47996321478" />
+              </label>
             </div>
-            <input name="email" type="email" placeholder="E-mail" required />
+            <label class="field">
+              <span>E-mail</span>
+              <input name="email" type="email" placeholder="joao@exemplo.com" required />
+            </label>
             <div class="row2">
-              <input name="postalCode" placeholder="CEP" value="14079-452" />
-              <input name="incomeValue" type="number" placeholder="Renda/faturamento" value="25000" />
+              <label class="field">
+                <span>CEP</span>
+                <input name="postalCode" value="14079-452" />
+              </label>
+              <label class="field">
+                <span>Faturamento</span>
+                <input name="incomeValue" type="number" value="25000" />
+              </label>
             </div>
             <button class="primary" type="submit">Criar subconta</button>
           </form>
@@ -423,9 +641,7 @@ function extractRows(list) {
         <td>${t.date ?? '—'}</td>
         <td>${t.type}</td>
         <td style="white-space:normal">${esc(t.description ?? '')}</td>
-        <td class="num" style="color:${t.value < 0 ? 'var(--danger)' : 'var(--accent)'}">
-          ${money(t.value)}
-        </td>
+        <td class="num ${t.value < 0 ? 'neg' : 'pos'}">${money(t.value)}</td>
         <td class="num">${money(t.balance)}</td>
       </tr>`,
       )
