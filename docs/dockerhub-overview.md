@@ -85,7 +85,7 @@ This is not a mock of static responses.
 - **Interest and late fees.** The fine is applied once, on the first day overdue; interest is pro-rata die over a 30-day commercial month.
 - **Split across accounts.** Every API key is an account with its own `walletId` and balance. A split moves money and posts entries to **both** statements.
 - **Webhooks the way Asaas does them.** `asaas-access-token` header, **only HTTP 200 counts as success** (201 and 204 are failures — that's the real rule), 15-attempt backoff, `SEQUENTIALLY` with genuine head-of-line blocking, and `interrupted` at the end.
-- **Real card handling.** Tokenization (the PAN is never stored), test cards, pre-authorization and capture, chargeback.
+- **Real card handling.** Tokenization (the PAN is never stored), test cards, pre-authorization and capture, chargeback. **Tokenization authorizes** — a card that declines never becomes a token, exactly as in Asaas — and **a token is bound to the customer that created it**. Both were captured from the sandbox, and both are the kind of thing a "save card for later" feature only discovers in production.
 - **Pix that actually pays.** `GET /v3/payments/{id}/pixQrCode` returns a **real EMV BR Code** — with CRC16 — and the QR PNG. Point your camera at it: the phone reads it.
 - **Subaccount onboarding.** Create it, list the pending KYC documents, upload the file (multipart), and approve — no waiting for a human reviewer.
 - **The whole API surface.** All **213 operations** from the official spec exist, with authentication, validation, and the Asaas error format. **119 have a business engine**; the rest return `501` naming the missing operation — never fake data.
@@ -102,6 +102,28 @@ Open **http://localhost:45445**. It's not the Asaas dashboard — it's the *simu
 - **Time travel**: `+1 day`, `+7`, `+32`. Confirm a card payment, click `+32`, and watch the balance land and the split hit the subaccount — in milliseconds.
 
 The dashboard depends on `ADMIN_ENABLED` (it reads every account's API key), and the time buttons need a virtual clock.
+
+---
+
+## Test cards
+
+The dashboard lists them, with a copy button and the exact error each one produces.
+
+We asked the sandbox instead of reading the docs, and the answer was uncomfortable: **Asaas has exactly one kind of decline, and it is opaque.** There is no "insufficient funds", no "stolen card", not even a reason field in the body — and the eight canonical industry decline numbers (`4000…0002` and friends) all *approve* there.
+
+| number | result | fidelity |
+|---|---|---|
+| `5162306219378829` · `4444444444444444` | approves | real Asaas |
+| `5184019740373151` · `4916561358240741` | issuer decline (`invalid_action`) | real Asaas |
+| `4000000000000069` | expired card | simulation |
+| `4000000000000101` | invalid number | simulation |
+| `4000000000000341` | **tokenizes, then declines when charged** | simulation |
+
+**Any well-formed number approves** — Asaas does not validate Luhn, and neither do we (`4111111111111112` approves there too).
+
+The cards marked *simulation* do not exist in Asaas — there, those numbers would approve. The panel says so, because a test written against behavior that only exists here becomes a bug in production. But the error they deliver is the **real** one, byte for byte: what's ours is the trigger, never the payload.
+
+`4000000000000341` is the one that fills a hole rather than reproducing one. Because tokenization authorizes, a saved card in Asaas *always* approves — so there is no way to test the scenario that actually breaks a saved-card feature: the customer's card, stored months ago, failing on renewal. This number does that.
 
 ---
 
