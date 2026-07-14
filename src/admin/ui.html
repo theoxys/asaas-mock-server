@@ -947,7 +947,13 @@ async function loadHooks() {
                  ? `<br>Último retorno do seu endpoint: <b>HTTP ${b.lastStatusCode}</b>
                     no evento <code>${esc(b.event)}</code>, tentativa ${b.attempt}.
                     <b>Só HTTP 200 é sucesso</b> para o Asaas.`
-                 : ''
+                 : // Sem status code, a falha não foi HTTP: o endpoint não respondeu
+                   // (fora do ar, timeout, conexão recusada). Sem isto na tela, o card
+                   // dizia "travada" sem dizer por quê — que é metade do problema.
+                   b.lastError
+                   ? `<br>O endpoint <b>não respondeu</b> no evento <code>${esc(b.event)}</code>
+                      (tentativa ${b.attempt}): <span class="mono">${esc(b.lastError)}</span>`
+                   : ''
              }
              ${b.behind > 0 ? `<br><b>${b.behind}</b> entrega(s) parada(s) atrás dela.` : ''}
            </span>
