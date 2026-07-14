@@ -169,6 +169,18 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
         { body: t.Optional(t.Object({ reason: t.Optional(t.String()) })) },
       )
 
+      /**
+       * Por que a fila de cada webhook não está andando.
+       *
+       * No Asaas você olha o painel e vê que travou. Aqui, até agora, você só
+       * descobria lendo a API — e o sintoma na ponta ("o pagamento consta RECEIVED
+       * mas meu pedido não atualizou") não aponta para webhook nenhum.
+       */
+      .get('/webhooks/queue', async () => {
+        const { queueHealth } = await import('../webhooks/dispatcher.ts')
+        return { webhooks: await queueHealth(ctx) }
+      })
+
       .get('/webhooks/deliveries', async ({ query }) => {
         const rows = await ctx.db
           .select({

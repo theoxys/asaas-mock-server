@@ -92,6 +92,121 @@ export async function pullBackFutureDeliveries(ctx: AppContext, nowMs: number): 
   return stuck.length
 }
 
+export interface QueueHealth {
+  webhookId: string
+  name: string
+  url: string
+  sendType: string
+  enabled: boolean
+  interrupted: boolean
+  pending: number
+  /** Por que a fila não anda. `null` = ela anda. */
+  blocked: null | {
+    reason: 'INTERRUPTED' | 'DISABLED' | 'HEAD_FAILING' | 'HEAD_IN_BACKOFF'
+    event: string
+    attempt: number
+    lastStatusCode: number | null
+    lastError: string | null
+    nextAttemptAtMs: number | null
+    /** Quantas entregas estão paradas ATRÁS desta. Só faz sentido em SEQUENTIALLY. */
+    behind: number
+  }
+}
+
+/**
+ * Por que a fila de cada webhook não está andando.
+ *
+ * Existe porque o motor é fiel demais para ser opaco: em SEQUENTIALLY, UMA entrega
+ * que falha trava todas as seguintes, e nada — nem no Asaas nem aqui — grita isso.
+ * O dev vê "o pagamento consta RECEIVED mas meu pedido não atualizou" e vai
+ * procurar o bug na rota de status dele, que está certa.
+ *
+ * A regra de bloqueio é LIDA da mesma cabeça de fila que `dispatchSequentially`
+ * consulta, e não reimplementada: se as duas pudessem discordar, o painel mentiria.
+ */
+export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
+  const now = ctx.clock.nowMs()
+  const configs = await ctx.db.select().from(webhooks)
+  const out: QueueHealth[] = []
+
+  for (const cfg of configs) {
+    const pending = await ctx.db
+      .select(dueColumns)
+      .from(webhookDeliveries)
+      .innerJoin(webhookEvents, eq(webhookDeliveries.eventId, webhookEvents.id))
+      .where(
+        and(eq(webhookDeliveries.webhookId, cfg.id), eq(webhookDeliveries.status, 'PENDING')),
+      )
+      .orderBy(asc(webhookDeliveries.sequence))
+
+    const head = pending[0]
+    const base = {
+      webhookId: cfg.id,
+      name: cfg.name,
+      url: cfg.url,
+      sendType: cfg.sendType,
+      enabled: cfg.enabled,
+      interrupted: cfg.interrupted,
+      pending: pending.length,
+    }
+
+    // `interrupted` e `enabled` derrubam a entrega ANTES de a cabeça da fila
+    // importar — é o filtro do `dispatchDue`. Por isso vêm primeiro aqui também.
+    let blocked: QueueHealth['blocked'] = null
+
+    if (head) {
+      const inBackoff = head.nextAttemptAtMs === null || head.nextAttemptAtMs > now
+      const why = cfg.interrupted
+        ? 'INTERRUPTED'
+        : !cfg.enabled
+          ? 'DISABLED'
+          : cfg.sendType !== 'SEQUENTIALLY'
+            ? null // sem head-of-line: uma entrega ruim não segura as outras
+            : head.attempt > 0
+              ? 'HEAD_FAILING'
+              : inBackoff
+                ? 'HEAD_IN_BACKOFF'
+                : null
+
+      if (why) {
+        const [row] = await ctx.db
+          .select({
+            lastStatusCode: webhookDeliveries.lastStatusCode,
+            lastError: webhookDeliveries.lastError,
+          })
+          .from(webhookDeliveries)
+          .where(eq(webhookDeliveries.id, head.id))
+          .limit(1)
+
+        blocked = {
+          reason: why,
+          event: head.event,
+          attempt: head.attempt,
+          lastStatusCode: row?.lastStatusCode ?? null,
+          lastError: row?.lastError ?? null,
+          nextAttemptAtMs: head.nextAttemptAtMs,
+          behind: pending.length - 1,
+        }
+      }
+    } else if (cfg.interrupted || !cfg.enabled) {
+      // Sem fila parada, mas nada vai ser entregue daqui pra frente. Vale o aviso.
+      blocked = {
+        reason: cfg.interrupted ? 'INTERRUPTED' : 'DISABLED',
+        event: '—',
+        attempt: 0,
+        lastStatusCode: null,
+        lastError: null,
+        nextAttemptAtMs: null,
+        behind: 0,
+      }
+    }
+
+    out.push({ ...base, blocked })
+  }
+
+  return out
+}
+
 /**
  * Entrega tudo que venceu.
  *

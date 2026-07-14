@@ -144,6 +144,88 @@ describe('voltar o relógio destrava a fila', () => {
   })
 })
 
+// ──────────────────────────────────── diagnóstico da fila (o card do painel)
+
+describe('queueHealth — por que a fila não anda', () => {
+  const health = async () => {
+    const res = await h.app.app.handle(new Request('http://localhost/_admin/webhooks/queue'))
+    const body = (await res.json()) as { webhooks: any[] }
+    return body.webhooks[0]!
+  }
+
+  it('fila que anda não reporta bloqueio', async () => {
+    await createWebhook({ sendType: 'SEQUENTIALLY' })
+    h.sink.respondWith(200)
+    await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
+    await h.tick()
+
+    const w = await health()
+    expect(w.blocked).toBeNull()
+    expect(w.pending).toBe(0)
+  })
+
+  /**
+   * O caso que motivou o card. O endpoint devolve 500, a cabeça da fila trava, e
+   * TODAS as entregas atrás dela param. O painel precisa dizer isso com todas as
+   * letras — inclusive o HTTP que o endpoint devolveu, porque é a informação que
+   * manda o dev olhar para o lugar certo.
+   */
+  it('em SEQUENTIALLY, a cabeça falhando trava as de trás — e o card diz quantas', async () => {
+    await createWebhook({ sendType: 'SEQUENTIALLY' })
+    h.sink.respondWith(500)
+
+    await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
+    await emit('PAYMENT_CONFIRMED', { id: 'pay_2', status: 'CONFIRMED' })
+    await emit('PAYMENT_RECEIVED', { id: 'pay_3', status: 'RECEIVED' })
+    await h.tick()
+
+    const w = await health()
+    expect(w.pending).toBe(3)
+    expect(w.blocked.reason).toBe('HEAD_FAILING')
+    expect(w.blocked.event).toBe('PAYMENT_CREATED') // a de MENOR sequence
+    expect(w.blocked.lastStatusCode).toBe(500)
+    expect(w.blocked.behind).toBe(2) // as outras duas, presas atrás
+  })
+
+  it('NON_SEQUENTIALLY não tem head-of-line: uma falha não trava as outras', async () => {
+    await createWebhook({ sendType: 'NON_SEQUENTIALLY' })
+    h.sink.respondWith(500)
+    await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
+    await h.tick()
+
+    const w = await health()
+    expect(w.pending).toBe(1) // ela falhou e vai reentregar
+    expect(w.blocked).toBeNull() // mas não segura ninguém
+  })
+
+  it('esgotar o backoff vira INTERRUPTED — e removeBackoff destrava', async () => {
+    const wh = await createWebhook({ sendType: 'SEQUENTIALLY' })
+    h.sink.respondWith(500)
+    await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
+
+    // As 15 tentativas, cada uma no seu passo exato de backoff. Fim da linha.
+    await h.tick()
+    for (const offset of BACKOFF_MS.slice(1)) {
+      h.clock.advance(offset)
+      await h.tick()
+    }
+
+    expect((await webhookRow(wh.id)).interrupted).toBe(true)
+    expect((await health()).blocked.reason).toBe('INTERRUPTED')
+
+    // O dev conserta o endpoint e aperta o botão. É a operação REAL do Asaas.
+    h.sink.respondWith(200)
+    const res = await h.api.call('remove-webhook-backoff', { params: { id: wh.id } })
+    expect(res.status).toBe(204)
+    await h.tick()
+
+    const w = await health()
+    expect(w.blocked).toBeNull()
+    expect(w.interrupted).toBe(false)
+    expect(w.pending).toBe(0)
+  })
+})
+
 // ────────────────────────────────────────────────────────── CRUD
 
 describe('webhooks — CRUD', () => {
