@@ -17,6 +17,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV TZ=America/Sao_Paulo
 
+# Sem esta linha o default do código vale (`./data/asaas.db`, dentro de /app), e o
+# `VOLUME /data` abaixo vira decoração: um `docker run -v meus-dados:/data` monta um
+# volume que fica VAZIO, o banco vive na camada efêmera do container e some no
+# primeiro `docker rm` — sem erro nenhum. O compose escapava porque define a
+# variável na mão; quem usasse `docker run` perdia os dados em silêncio.
+ENV DATABASE_PATH=/data/asaas.db
+
 # Preenchidos pelo `docker buildx bake`/`--build-arg` na hora de publicar.
 ARG VERSION=dev
 ARG REVISION=unknown

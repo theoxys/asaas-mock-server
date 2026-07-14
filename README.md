@@ -4,9 +4,29 @@ A **local Asaas**, in Docker. It simulates the Asaas sandbox with contract *and*
 behavioral fidelity — and, unlike the real sandbox, it **delivers webhooks to
 `localhost`**.
 
+<p align="center">
+  <a href="https://hub.docker.com/r/mpiresdev/asaas-mock-server"><img alt="Docker Hub" src="https://img.shields.io/docker/v/mpiresdev/asaas-mock-server?logo=docker&logoColor=white&label=docker%20hub&color=0038e5"></a>
+  <a href="https://hub.docker.com/r/mpiresdev/asaas-mock-server"><img alt="Image size" src="https://img.shields.io/docker/image-size/mpiresdev/asaas-mock-server/latest?logo=docker&logoColor=white&color=0038e5"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%C2%B7%20arm64-0038e5">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-0038e5"></a>
+</p>
+
 ```bash
 docker run -p 45445:45445 mpiresdev/asaas-mock-server
 ```
+
+**Image:** [`mpiresdev/asaas-mock-server`](https://hub.docker.com/r/mpiresdev/asaas-mock-server)
+on Docker Hub — `linux/amd64` and `linux/arm64`.
+
+<p align="center">
+  <img src="docs/panel.png" alt="The simulator's dashboard: every account with its balance and API key, payments in every state, and the buttons that skip the clock forward." width="900">
+</p>
+
+<p align="center">
+  <em>The clock reads <code>2026-08-16</code> because someone clicked <code>+32</code>. That's the
+  whole point: the boleto is <code>OVERDUE</code>, the card credits at D+32, and none of it took
+  a month.</em>
+</p>
 
 ## Use it in another project
 
