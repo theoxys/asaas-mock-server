@@ -25,7 +25,7 @@ import { Statement } from './pages/Statement.tsx'
 import { Subaccounts } from './pages/Subaccounts.tsx'
 import { Clock } from './pages/sim/Clock.tsx'
 import { TestCards } from './pages/sim/TestCards.tsx'
-import { Webhooks } from './pages/sim/Webhooks.tsx'
+import { Webhooks } from './pages/Webhooks.tsx'
 import { useStore, type Store } from './store.ts'
 import './app.css'
 
@@ -42,15 +42,15 @@ const TITLES: Record<string, string> = {
   statement: 'Extrato da Conta',
   splits: 'Split de pagamentos',
   subaccounts: 'Subcontas',
+  webhooks: 'Webhooks',
   'sim-clock': 'Relógio virtual',
-  'sim-webhooks': 'Fila de webhooks',
   'sim-cards': 'Cartões de teste',
 }
 
 /**
  * A página fica no hash. Trinta linhas a menos que um router, e resolve o que
  * importa: recarregar não te joga de volta na home, o botão de voltar do browser
- * funciona, e você consegue mandar `#sim-webhooks` para alguém que está com a fila
+ * funciona, e você consegue mandar `#webhooks` para alguém que está com a fila
  * travada em vez de descrever onde clicar.
  */
 function useHashPage(fallback: string) {
@@ -72,7 +72,11 @@ export function App() {
   const [saleOpen, setSaleOpen] = useState(false)
 
   const drift = store.clock?.driftDays ?? 0
-  const blocked = store.queues.filter((q) => q.blocked)
+
+  // Só as filas DESTA conta. A tarja fala do que você está olhando: avisar que a fila
+  // de outra produtora travou, enquanto você depura a sua, é ruído que ensina a ignorar
+  // o aviso — e o dia em que ele for sobre você, ele já não é lido.
+  const blocked = store.queues.filter((q) => q.blocked && q.accountId === store.selected?.id)
 
   const resetClock = async () => {
     const r = await admin('/clock/reset', { method: 'POST' })
@@ -135,19 +139,19 @@ export function App() {
             </Banner>
           )}
 
-          {blocked.length > 0 && page !== 'sim-webhooks' && (
+          {blocked.length > 0 && page !== 'webhooks' && (
             <Banner
               tone="danger"
               icon={I.WEBHOOK}
               action={
-                <Button variant="danger" size="sm" onClick={() => setPage('sim-webhooks')}>
+                <Button variant="danger" size="sm" onClick={() => setPage('webhooks')}>
                   Ver fila
                 </Button>
               }
             >
-              {plural(blocked.length, 'fila de webhook está travada', 'filas de webhook estão travadas')}.
-              Enquanto isso, <b>nenhum evento chega</b> na sua aplicação — e o pagamento
-              parece pago aqui e pendente lá.
+              {plural(blocked.length, 'fila de webhook está travada', 'filas de webhook estão travadas')} em{' '}
+              <b>{store.selected?.name}</b>. Enquanto isso, <b>nenhum evento chega</b> na sua
+              aplicação — e o pagamento parece pago aqui e pendente lá.
             </Banner>
           )}
 
@@ -176,7 +180,7 @@ function Page({ page, ...p }: PageProps & { page: string }) {
       return <Subaccounts {...p} />
     case 'sim-clock':
       return <Clock {...p} />
-    case 'sim-webhooks':
+    case 'webhooks':
       return <Webhooks {...p} />
     case 'sim-cards':
       return <TestCards /> // a tabela vem do domínio, não da conta selecionada

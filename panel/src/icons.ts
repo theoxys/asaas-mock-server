@@ -13,8 +13,11 @@
 export {
   Alert02Icon as ALERT,
   ArrowDown01Icon as CARET,
+  ArrowDown01Icon as SORT_DESC,
   ArrowReloadHorizontalIcon as REFRESH,
   ArrowRight01Icon as CHEVRON,
+  ArrowUp01Icon as SORT_ASC,
+  Search01Icon as SEARCH,
   Building03Icon as SUBACCOUNT,
   Cancel01Icon as CLOSE,
   Clock01Icon as CLOCK,

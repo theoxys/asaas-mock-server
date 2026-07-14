@@ -1,20 +1,27 @@
 /**
- * A fila de webhooks — e POR QUE ela não está andando.
+ * Os webhooks DA CONTA SELECIONADA, e por que a fila de cada um não está andando.
  *
- * O motor é fiel demais para ser opaco. Em `SEQUENTIALLY` (o padrão do Asaas), UMA
- * entrega que falha trava TODAS as seguintes: head-of-line blocking de verdade. Nem no
- * Asaas nem aqui alguém grita isso — o sintoma na ponta é "o Asaas diz que o pagamento
- * foi RECEIVED, mas meu pedido continua pendente", e o dev vai caçar o bug na rota de
- * status dele, que está certa.
+ * Webhook é configuração da conta, não do simulador — por isso esta tela mora na
+ * navegação do Asaas, e não no bloco do Simulador. Um evento da conta X só é entregue
+ * aos webhooks de X, e a chave de X é a única que os enxerga (a de outra conta devolve
+ * 404). Mostrar os oito webhooks das oito contas de uma vez, como esta tela fazia,
+ * respondia à pergunta errada — e fazia parecer registro duplicado o que era só cada
+ * produtor com o seu.
  *
- * As AÇÕES vão pela API v3 REAL, com a chave do DONO do webhook (cada conta só enxerga
- * os seus — a chave errada devolve 404). Nada aqui te ensina um truque que não existe
- * no Asaas: uma mensagem envenenada só sai consertando o seu endpoint.
+ * O DIAGNÓSTICO da fila é introspecção nossa; o Asaas não te dá isso. Existe porque o
+ * motor é fiel demais para ser opaco: em `SEQUENTIALLY` (o padrão do Asaas), UMA entrega
+ * que falha trava TODAS as seguintes — head-of-line blocking de verdade. Nem lá nem aqui
+ * alguém grita isso, e o sintoma na ponta é "o Asaas diz que o pagamento foi RECEIVED,
+ * mas meu pedido continua pendente": você vai caçar o bug na sua rota de status, que
+ * está certa.
+ *
+ * As AÇÕES vão pela API v3 REAL, com a chave da conta. Nada aqui te ensina um truque que
+ * não existe no Asaas: uma mensagem envenenada só sai consertando o seu endpoint.
  */
 import { useState } from 'preact/hooks'
-import { admin, v3, type QueueHealth } from '../../api.ts'
-import type { PageProps } from '../../app.tsx'
-import { Badge, Banner, Button, Card, Empty, Row } from '../../components/ui.tsx'
+import { admin, v3, type QueueHealth } from '../api.ts'
+import type { PageProps } from '../app.tsx'
+import { Badge, Banner, Button, Card, Empty, Row } from '../components/ui.tsx'
 
 const WHY: Record<string, string> = {
   INTERRUPTED:
@@ -27,10 +34,12 @@ const WHY: Record<string, string> = {
 
 export function Webhooks({ store }: PageProps) {
   const [busy, setBusy] = useState<string | null>(null)
-  const keyOf = new Map(store.accounts.map((a) => [a.id, a.apiKey]))
+
+  /** Só os desta conta. É o recorte que o Asaas faz, e a pergunta que você está fazendo. */
+  const queues = store.queues.filter((q) => q.accountId === store.selected?.id)
+  const key = store.selected?.apiKey
 
   const act = async (w: QueueHealth, fn: (key: string) => Promise<unknown>) => {
-    const key = keyOf.get(w.accountId)
     if (!key) return
     setBusy(w.webhookId)
     try {
@@ -44,11 +53,12 @@ export function Webhooks({ store }: PageProps) {
     }
   }
 
-  if (store.queues.length === 0) {
+  if (queues.length === 0) {
     return (
       <Card>
         <Empty>
-          nenhum webhook cadastrado — crie um em <code>POST /v3/webhooks</code>
+          <b>{store.selected?.name}</b> não tem webhook cadastrado — crie um em{' '}
+          <code>POST /v3/webhooks</code> com a chave dela.
         </Empty>
       </Card>
     )
@@ -57,23 +67,19 @@ export function Webhooks({ store }: PageProps) {
   return (
     <div class="stack">
       <Banner tone="primary">
-        Esta tela é do simulador, mas os <b>botões chamam a API real do Asaas</b>{' '}
-        (<code>removeBackoff</code>, <code>PUT /v3/webhooks</code>). Não há botão de
-        descartar evento: no Asaas não existe, e uma mensagem envenenada só sai
-        consertando o seu endpoint.
+        Os webhooks são <b>de {store.selected?.name}</b> — cada conta tem os seus, e um
+        evento dela só é entregue a eles. Os botões chamam a <b>API real do Asaas</b>{' '}
+        (<code>removeBackoff</code>, <code>PUT /v3/webhooks</code>). O diagnóstico da fila
+        abaixo é introspecção do simulador: o Asaas não te conta por que ela travou.
       </Banner>
 
-      {store.queues.map((w) => {
+      {queues.map((w) => {
         const b = w.blocked
         return (
           <Card
             key={w.webhookId}
             title={w.name}
-            subtitle={
-              <>
-                conta <b>{w.accountName}</b> · <span class="mono">{w.url}</span>
-              </>
-            }
+            subtitle={<span class="mono">{w.url}</span>}
             actions={
               <>
                 <Badge tone={w.sendType === 'SEQUENTIALLY' ? 'primary' : 'neutral'}>

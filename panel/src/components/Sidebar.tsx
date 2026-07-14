@@ -34,12 +34,20 @@ export const ASAAS_NAV: NavItem[] = [
   { id: 'dunning', label: 'Negativação', icon: I.ALERT, disabled: true },
   { id: 'splits', label: 'Split de pagamentos', icon: I.SPLIT },
   { id: 'subaccounts', label: 'Subcontas', icon: I.SUBACCOUNT },
+  /**
+   * Webhook é configuração DA CONTA, e existe no painel do Asaas de verdade — por isso
+   * mora aqui em cima, e não no bloco do Simulador. Cada conta tem os seus, e um evento
+   * da conta X só é entregue aos webhooks de X.
+   *
+   * (O DIAGNÓSTICO da fila — por que ela travou, quantas entregas estão presas atrás —
+   * esse sim é introspecção nossa. A tela diz isso.)
+   */
+  { id: 'webhooks', label: 'Webhooks', icon: I.WEBHOOK },
 ]
 
 /** O que NÃO existe no Asaas. É por isso que fica num bloco à parte. */
 export const SIM_NAV: NavItem[] = [
   { id: 'sim-clock', label: 'Relógio virtual', icon: I.CLOCK },
-  { id: 'sim-webhooks', label: 'Fila de webhooks', icon: I.WEBHOOK },
   { id: 'sim-cards', label: 'Cartões de teste', icon: I.CARD },
 ]
 
@@ -73,7 +81,7 @@ export function Sidebar(props: {
         </button>
       </div>
 
-      <nav>{ASAAS_NAV.map((i) => item(i))}</nav>
+      <nav>{ASAAS_NAV.map((i) => item(i, i.id === 'webhooks' ? props.webhookAlerts : 0))}</nav>
 
       <div class="sim-section">
         <div class="sim-label">
@@ -85,9 +93,7 @@ export function Sidebar(props: {
             title="Nada aqui existe na API do Asaas. São controles do mock."
           />
         </div>
-        <nav>
-          {SIM_NAV.map((i) => item(i, i.id === 'sim-webhooks' ? props.webhookAlerts : 0))}
-        </nav>
+        <nav>{SIM_NAV.map((i) => item(i))}</nav>
       </div>
     </aside>
   )

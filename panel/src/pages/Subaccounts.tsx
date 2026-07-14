@@ -13,7 +13,9 @@
 import { useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
 import type { PageProps } from '../app.tsx'
-import { Button, Card, Copy, Empty, money, Table } from '../components/ui.tsx'
+import { DataTable, type Column } from '../components/DataTable.tsx'
+import type { Account } from '../api.ts'
+import { Button, Card, Copy, money } from '../components/ui.tsx'
 
 export function Subaccounts({ store }: PageProps) {
   const subs = store.accounts.filter((a) => a.parentAccountId)
@@ -49,6 +51,30 @@ export function Subaccounts({ store }: PageProps) {
     }
   }
 
+  const columns: Column<Account>[] = [
+    { key: 'name', header: 'Nome', render: (a) => a.name, value: (a) => a.name },
+    {
+      key: 'walletId',
+      header: 'walletId',
+      render: (a) => <Copy value={a.walletId}>{`${a.walletId.slice(0, 8)}…`}</Copy>,
+      value: (a) => a.walletId,
+    },
+    {
+      key: 'apiKey',
+      header: 'Chave de API',
+      render: (a) =>
+        a.apiKey ? <Copy value={a.apiKey}>{`${a.apiKey.slice(0, 18)}…`}</Copy> : '—',
+      value: (a) => a.apiKey,
+    },
+    {
+      key: 'balance',
+      header: 'Saldo',
+      align: 'right',
+      render: (a) => <span class={a.balance < 0 ? 'neg' : ''}>{money(a.balance)}</span>,
+      value: (a) => a.balance,
+    },
+  ]
+
   return (
     <div class="stack">
       <Card title="Nova subconta">
@@ -70,48 +96,19 @@ export function Subaccounts({ store }: PageProps) {
         </p>
       </Card>
 
-      <Card subtitle={`${subs.length} subconta(s) nesta instalação`} flush>
-        {subs.length === 0 ? (
-          <Empty>nenhuma subconta ainda</Empty>
-        ) : (
-          <Table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>walletId</th>
-                <th>Chave de API</th>
-                <th style={{ textAlign: 'right' }}>Saldo</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {subs.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.name}</td>
-                  <td><Copy value={a.walletId}>{`${a.walletId.slice(0, 8)}…`}</Copy></td>
-                  <td>
-                    {a.apiKey ? (
-                      <Copy value={a.apiKey}>{`${a.apiKey.slice(0, 18)}…`}</Copy>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td
-                    style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
-                    class={a.balance < 0 ? 'neg' : ''}
-                  >
-                    {money(a.balance)}
-                  </td>
-                  <td>
-                    <Button size="sm" onClick={() => store.select(a.id)}>
-                      Entrar
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+      <Card flush>
+        <DataTable
+          rows={subs}
+          columns={columns}
+          initialSort={{ key: 'name', dir: 'asc' }}
+          searchPlaceholder="Buscar por nome, walletId, chave…"
+          empty="nenhuma subconta ainda"
+          actions={(a) => (
+            <Button size="sm" onClick={() => store.select(a.id)}>
+              Entrar
+            </Button>
+          )}
+        />
       </Card>
     </div>
   )

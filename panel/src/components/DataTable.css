@@ -1,0 +1,75 @@
+.dt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pad-md);
+  padding: var(--pad-md) var(--pad-md) var(--pad-sm);
+}
+
+.dt-search {
+  display: flex;
+  align-items: center;
+  gap: var(--pad-xs);
+  flex: 1;
+  max-width: 340px;
+  height: 40px;
+  padding: 0 var(--pad-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  color: var(--text-soft);
+}
+.dt-search:focus-within { border-color: var(--focus); color: var(--primary); }
+
+.dt-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: 400 14px var(--font);
+}
+/* O × nativo do type=search é cinza-escuro fixo e some no tema escuro. */
+.dt-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--text-soft);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M18 6 6 18M6 6l12 12' stroke='%23000' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  cursor: pointer;
+}
+
+.dt-count {
+  font-size: 12px;
+  color: var(--text-medium);
+  white-space: nowrap;
+}
+
+/* Cabeçalho clicável. É um <button> de verdade — foco por teclado e leitor de tela. */
+.dt-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.dt-sort:hover { color: var(--text); }
+.dt-sort.active { color: var(--primary); }
+
+/* A seta só aparece na coluna ativa (ou no hover, como convite). */
+.dt-arrow { opacity: 0; transition: opacity 120ms; }
+.dt-sort:hover .dt-arrow { opacity: .45; }
+.dt-sort.active .dt-arrow { opacity: 1; }
+
+th.right, td.right { text-align: right; }
+td.right { font-variant-numeric: tabular-nums; }
+
+/* Sem linhas, a tabela vira um cabeçalho solto: o Empty entra logo abaixo. */
+.dt tbody:empty { display: none; }

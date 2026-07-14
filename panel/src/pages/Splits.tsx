@@ -13,7 +13,8 @@
 import { useEffect, useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
 import type { PageProps } from '../app.tsx'
-import { Badge, Card, Empty, money, Table, type Tone } from '../components/ui.tsx'
+import { DataTable, type Column } from '../components/DataTable.tsx'
+import { Badge, Card, Empty, money, type Tone } from '../components/ui.tsx'
 
 interface Split {
   id: string
@@ -38,41 +39,57 @@ const TONE: Record<string, Tone> = {
 }
 
 function SplitTable({ rows, empty }: { rows: Split[]; empty: string }) {
-  if (rows.length === 0) return <Empty>{empty}</Empty>
+  const columns: Column<Split>[] = [
+    {
+      key: 'paymentId',
+      header: 'Cobrança',
+      render: (s) => <span class="mono">{s.paymentId ?? '—'}</span>,
+      value: (s) => s.paymentId,
+    },
+    {
+      key: 'walletId',
+      header: 'Carteira',
+      render: (s) => <span class="mono hint">{s.walletId?.slice(0, 8) ?? '—'}…</span>,
+      value: (s) => s.walletId,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (s) => <Badge tone={TONE[s.status] ?? 'neutral'}>{s.status}</Badge>,
+      value: (s) => s.status,
+    },
+    {
+      key: 'rule',
+      header: 'Regra',
+      render: (s) => (
+        <span class="hint">
+          {s.percentualValue != null
+            ? `${s.percentualValue}%`
+            : s.fixedValue != null
+              ? money(s.fixedValue)
+              : '—'}
+        </span>
+      ),
+      // Percentual e fixo não são comparáveis entre si. Ordenar por esta coluna
+      // misturaria "10%" com "R$ 50" e produziria uma ordem sem significado.
+    },
+    {
+      key: 'totalValue',
+      header: 'Valor',
+      align: 'right',
+      render: (s) => money(s.totalValue),
+      value: (s) => s.totalValue,
+    },
+  ]
 
   return (
-    <Table>
-      <thead>
-        <tr>
-          <th>Cobrança</th>
-          <th>Carteira</th>
-          <th>Status</th>
-          <th>Regra</th>
-          <th style={{ textAlign: 'right' }}>Valor</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((s) => (
-          <tr key={s.id}>
-            <td class="mono">{s.paymentId ?? '—'}</td>
-            <td class="mono hint">{s.walletId?.slice(0, 8) ?? '—'}…</td>
-            <td>
-              <Badge tone={TONE[s.status] ?? 'neutral'}>{s.status}</Badge>
-            </td>
-            <td class="hint">
-              {s.percentualValue != null
-                ? `${s.percentualValue}%`
-                : s.fixedValue != null
-                  ? money(s.fixedValue)
-                  : '—'}
-            </td>
-            <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-              {money(s.totalValue)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
+    <DataTable
+      rows={rows}
+      columns={columns}
+      initialSort={{ key: 'totalValue', dir: 'desc' }}
+      searchPlaceholder="Buscar por cobrança, carteira, status…"
+      empty={empty}
+    />
   )
 }
 

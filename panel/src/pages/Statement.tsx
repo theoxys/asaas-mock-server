@@ -5,11 +5,15 @@
  * mostrado na topbar. É essa a invariante que os testes de integração checam a cada
  * transação (`balance_cents === SUM(financial_transactions.value_cents)`), e é ela que
  * torna possível olhar um split e ver o dinheiro sair de uma conta e entrar na outra.
+ *
+ * A coluna "Saldo" é um acumulado: ordenar por ela ou filtrar a lista NÃO recalcula
+ * nada — o número continua sendo o saldo daquele instante, que é o que ele quer dizer.
  */
 import { useEffect, useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
 import type { PageProps } from '../app.tsx'
-import { Badge, Card, Empty, money, Table } from '../components/ui.tsx'
+import { DataTable, type Column } from '../components/DataTable.tsx'
+import { Badge, Card, Empty, money } from '../components/ui.tsx'
 
 interface Tx {
   id: string
@@ -35,49 +39,55 @@ export function Statement({ store }: PageProps) {
   }, [key])
 
   if (!rows) return <Card><Empty>carregando…</Empty></Card>
-  if (rows.length === 0) return <Card><Empty>nenhum lançamento nesta conta</Empty></Card>
+
+  const columns: Column<Tx>[] = [
+    { key: 'date', header: 'Data', render: (t) => t.date, value: (t) => t.date },
+    {
+      key: 'type',
+      header: 'Tipo',
+      render: (t) => <Badge tone={DEBIT.test(t.type) ? 'danger' : 'success'}>{t.type}</Badge>,
+      value: (t) => t.type,
+    },
+    {
+      key: 'description',
+      header: 'Descrição',
+      render: (t) => <span style={{ whiteSpace: 'normal' }}>{t.description ?? '—'}</span>,
+      value: (t) => t.description,
+    },
+    {
+      key: 'paymentId',
+      header: 'Cobrança',
+      render: (t) => <span class="mono hint">{t.paymentId ?? '—'}</span>,
+      value: (t) => t.paymentId,
+    },
+    {
+      key: 'value',
+      header: 'Valor',
+      align: 'right',
+      render: (t) => <span class={t.value < 0 ? 'neg' : 'pos'}>{money(t.value)}</span>,
+      value: (t) => t.value,
+    },
+    {
+      key: 'balance',
+      header: 'Saldo',
+      align: 'right',
+      render: (t) => <span class="hint">{money(t.balance)}</span>,
+      value: (t) => t.balance,
+    },
+  ]
 
   return (
     <Card
       subtitle={`Saldo atual: ${money(store.selected?.balance)} — a soma dos lançamentos abaixo fecha com ele.`}
       flush
     >
-      <Table>
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Tipo</th>
-            <th>Descrição</th>
-            <th>Cobrança</th>
-            <th style={{ textAlign: 'right' }}>Valor</th>
-            <th style={{ textAlign: 'right' }}>Saldo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((t) => (
-            <tr key={t.id}>
-              <td>{t.date}</td>
-              <td>
-                <Badge tone={DEBIT.test(t.type) ? 'danger' : 'success'}>{t.type}</Badge>
-              </td>
-              <td style={{ whiteSpace: 'normal' }}>{t.description ?? '—'}</td>
-              <td class="mono hint">{t.paymentId ?? '—'}</td>
-              <td
-                style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
-                class={t.value < 0 ? 'neg' : 'pos'}
-              >
-                {money(t.value)}
-              </td>
-              <td
-                class="hint"
-                style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
-              >
-                {money(t.balance)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+      <DataTable
+        rows={rows}
+        columns={columns}
+        initialSort={{ key: 'date', dir: 'desc' }}
+        searchPlaceholder="Buscar por tipo, descrição, cobrança…"
+        empty="nenhum lançamento nesta conta"
+      />
     </Card>
   )
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
 import type { PageProps } from '../app.tsx'
-import { Card, Empty, Table } from '../components/ui.tsx'
+import { DataTable, type Column } from '../components/DataTable.tsx'
+import { Card, Empty } from '../components/ui.tsx'
 
 interface Customer {
   id: string
@@ -23,34 +24,40 @@ export function Customers({ store }: PageProps) {
   }, [key])
 
   if (!rows) return <Card><Empty>carregando…</Empty></Card>
-  if (rows.length === 0) return <Card><Empty>nenhum cliente nesta conta</Empty></Card>
+
+  const columns: Column<Customer>[] = [
+    { key: 'id', header: 'ID', render: (c) => <span class="mono">{c.id}</span>, value: (c) => c.id },
+    { key: 'name', header: 'Nome', render: (c) => c.name, value: (c) => c.name },
+    {
+      key: 'cpfCnpj',
+      header: 'CPF/CNPJ',
+      render: (c) => <span class="mono">{c.cpfCnpj}</span>,
+      value: (c) => c.cpfCnpj,
+    },
+    { key: 'email', header: 'E-mail', render: (c) => c.email ?? '—', value: (c) => c.email },
+    {
+      key: 'mobilePhone',
+      header: 'Telefone',
+      render: (c) => c.mobilePhone ?? '—',
+      value: (c) => c.mobilePhone,
+    },
+    {
+      key: 'dateCreated',
+      header: 'Criado em',
+      render: (c) => c.dateCreated,
+      value: (c) => c.dateCreated,
+    },
+  ]
 
   return (
-    <Card subtitle={`${rows.length} cliente(s) nesta conta`} flush>
-      <Table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nome</th>
-            <th>CPF/CNPJ</th>
-            <th>E-mail</th>
-            <th>Telefone</th>
-            <th>Criado em</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((c) => (
-            <tr key={c.id}>
-              <td class="mono">{c.id}</td>
-              <td>{c.name}</td>
-              <td class="mono">{c.cpfCnpj}</td>
-              <td>{c.email ?? '—'}</td>
-              <td>{c.mobilePhone ?? '—'}</td>
-              <td>{c.dateCreated}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+    <Card flush>
+      <DataTable
+        rows={rows}
+        columns={columns}
+        initialSort={{ key: 'name', dir: 'asc' }}
+        searchPlaceholder="Buscar por nome, CPF/CNPJ, e-mail…"
+        empty="nenhum cliente nesta conta"
+      />
     </Card>
   )
 }
