@@ -1,6 +1,6 @@
 {
   "name": "asaas-mock-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Simulador local fiel do sandbox Asaas — entrega webhooks em localhost",
   "private": true,
   "type": "module",
