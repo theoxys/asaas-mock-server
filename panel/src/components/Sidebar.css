@@ -10,6 +10,7 @@
   padding: 28px 14px;
   background: var(--surface);
   border-right: 1px solid var(--border);
+  box-shadow: var(--shadow-sidebar);
   overflow-y: auto;
 }
 

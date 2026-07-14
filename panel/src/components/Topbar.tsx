@@ -9,6 +9,7 @@
  */
 import { useState } from 'preact/hooks'
 import type { Account } from '../api.ts'
+import { useTheme } from '../theme.ts'
 import { money } from './ui.tsx'
 import './Topbar.css'
 
@@ -20,6 +21,7 @@ export function Topbar(props: {
   refreshing: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const [theme, toggleTheme] = useTheme()
   const { selected } = props
 
   const initial = (selected?.name ?? '?').charAt(0).toUpperCase()
@@ -53,6 +55,15 @@ export function Topbar(props: {
       <button class="refresh" onClick={props.onRefresh} disabled={props.refreshing}>
         <span class={props.refreshing ? 'spin' : ''}>↻</span>
         {props.refreshing ? 'Atualizando' : 'Atualizado'}
+      </button>
+
+      <button
+        class="theme-toggle"
+        onClick={toggleTheme}
+        title={theme === 'dark' ? 'Usar o tema claro (o do Asaas)' : 'Usar o tema escuro'}
+        aria-label="Alternar tema"
+      >
+        {theme === 'dark' ? '☀' : '☾'}
       </button>
 
       <div class="acct-picker">

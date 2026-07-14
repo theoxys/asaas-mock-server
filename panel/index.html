@@ -20,6 +20,19 @@
   </head>
   <body>
     <div id="app"></div>
+    <!--
+      Aplica o tema ANTES do primeiro paint. Sem isto, quem escolheu o escuro toma um
+      flash branco em cada reload — o React/Preact só monta depois, e até lá o browser
+      já pintou a página com os tokens claros.
+    -->
+    <script>
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem('asaas-mock:theme') === 'dark' ? 'dark' : 'light'
+      } catch {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

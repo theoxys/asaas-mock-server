@@ -127,3 +127,18 @@
 .acct-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-option-bal { font-variant-numeric: tabular-nums; color: var(--text-medium); }
 .acct-option-bal.neg { color: var(--danger-strong); }
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-medium);
+  font-size: 15px;
+  cursor: pointer;
+}
+.theme-toggle:hover { background: var(--surface-hover); color: var(--text); }

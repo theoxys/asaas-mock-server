@@ -11,7 +11,8 @@
   --blue-500: #0038e5; --blue-600: #0036b8; --blue-700: #002f8a;
   --blue-900: #1e3a8a;
 
-  --sky-10: #fcfcfd;   --sky-30: #f7f8fa;   --sky-50: #f2f4f7;
+  --sky-10: #fcfcfd;   --sky-20: #f8f9fa;   --sky-30: #f7f8fa;
+  --sky-50: #f2f4f7;
   --sky-100: #e5e8ec;  --sky-200: #d1d6dc;  --sky-400: #9aa4b3;
   --sky-600: #5e6877;  --sky-700: #4a5461;  --sky-800: #2f363f;
   --sky-900: #1d2125;
@@ -26,7 +27,7 @@
   --amber-500: #f59e0b; --amber-600: #b45309; --amber-700: #92400e;
 
   /* semânticos — é isto que os componentes usam */
-  --page: var(--sky-30);
+  --page: var(--sky-20);
   --surface: var(--sky-10);
   --surface-soft: var(--sky-50);
   --surface-hover: var(--sky-100);
@@ -68,51 +69,57 @@
 
   --sidebar-w: 280px;
   --shadow-card: 0 2px 8px rgb(0 0 0 / 5%);
+  --shadow-sidebar: 4px 0 8px rgb(29 33 37 / 8%);
 }
 
 /**
- * O painel de verdade do Asaas é só claro. Este aqui vive num terminal de dev às
- * duas da manhã — e o tema escuro já era o que o usuário tinha na tela.
+ * O CLARO É O PADRÃO, e não `prefers-color-scheme`.
+ *
+ * O painel do Asaas é só claro, e esta tela existe para PARECER com ele: seguir o tema
+ * do sistema significava que, numa máquina configurada no escuro, ninguém jamais via a
+ * aparência que o painel foi feito para ter. O escuro continua disponível — mas por
+ * escolha explícita (`data-theme="dark"`, no alternador da topbar), não por acidente
+ * da configuração do sistema operacional.
  */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page: #14181d;
-    --surface: #1a1f26;
-    --surface-soft: #20262e;
-    --surface-hover: #262d36;
-    --border: #313a45;
-    --border-soft: #262d36;
-    --text: #eef1f4;
-    --text-medium: #9aa4b3;
-    --text-soft: #6b7684;
+:root[data-theme='dark'] {
 
-    --primary: #3d6dff;
-    --primary-hover: #5680ff;
-    --primary-pressed: #1f61ff;
-    --primary-soft: #1b2a52;
-    --primary-strong: #7ea0ff;
-    --focus: #5680ff;
+  --page: #14181d;
+  --surface: #1a1f26;
+  --surface-soft: #20262e;
+  --surface-hover: #262d36;
+  --border: #313a45;
+  --border-soft: #262d36;
+  --text: #eef1f4;
+  --text-medium: #9aa4b3;
+  --text-soft: #6b7684;
 
-    --success: #22a06b;
-    --success-strong: #4ade80;
-    --success-soft: #14301f;
-    --green-200: #1e5c3d;
-    --green-400: #22a06b;
+  --primary: #3d6dff;
+  --primary-hover: #5680ff;
+  --primary-pressed: #1f61ff;
+  --primary-soft: #1b2a52;
+  --primary-strong: #7ea0ff;
+  --focus: #5680ff;
 
-    --danger: #e5484d;
-    --danger-strong: #f26d78;
-    --danger-soft: #3a1d20;
-    --red-200: #6b2b31;
+  --success: #22a06b;
+  --success-strong: #4ade80;
+  --success-soft: #14301f;
+  --green-200: #1e5c3d;
+  --green-400: #22a06b;
 
-    --warn: #d99b25;
-    --warn-strong: #f0b849;
-    --warn-soft: #3a2c12;
-    --amber-200: #5c4517;
-    --amber-400: #b8862c;
+  --danger: #e5484d;
+  --danger-strong: #f26d78;
+  --danger-soft: #3a1d20;
+  --red-200: #6b2b31;
 
-    --blue-900: #1b2a52;
-    --shadow-card: 0 2px 8px rgb(0 0 0 / 30%);
-  }
+  --warn: #d99b25;
+  --warn-strong: #f0b849;
+  --warn-soft: #3a2c12;
+  --amber-200: #5c4517;
+  --amber-400: #b8862c;
+
+  --blue-900: #1b2a52;
+  --shadow-card: 0 2px 8px rgb(0 0 0 / 30%);
+  --shadow-sidebar: 4px 0 8px rgb(0 0 0 / 25%);
 }
 
 * { box-sizing: border-box; }
