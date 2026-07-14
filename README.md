@@ -269,3 +269,12 @@ registre em `progress.md`.
 **O que ainda não está provado** está listado em `progress.md` — com destaque para os
 *payloads de webhook*, que exigiriam um túnel público para capturar (o sandbox não
 entrega em localhost, que é o motivo de este projeto existir).
+
+## Licença e isenção
+
+MIT — veja [`LICENSE`](LICENSE).
+
+**Este projeto não é afiliado ao Asaas.** É um simulador independente da API
+pública deles, feito para desenvolvimento e teste locais. "Asaas" é marca dos seus
+respectivos donos. **Não use isto para processar dinheiro de verdade**: nenhuma
+cobrança aqui é real, e a chave de API que o simulador aceita é qualquer string.
