@@ -335,6 +335,21 @@
     box-shadow: 0 1px 2px rgb(29 33 37 / 8%);
   }
 
+  /* O aviso de relógio adiantado. Âmbar, largura toda, impossível de não ver —
+     é o estado que faz a aplicação do outro lado parecer quebrada. */
+  .banner {
+    display: flex; align-items: center; gap: var(--pad-sm);
+    padding: var(--pad-sm) var(--pad-lg);
+    margin-bottom: var(--pad-md);
+    background: var(--amber-50); color: var(--amber-600);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-input);
+    font-size: 14px; line-height: 150%;
+  }
+  .banner b { font-weight: 600; }
+  .banner-icon { font-size: 18px; flex: none; }
+  .banner button { margin-left: auto; flex: none; }
+
   .stack { display: grid; gap: var(--pad-md); }
   .hint {
     color: var(--text-medium); font-size: 13px; line-height: 150%;
@@ -369,6 +384,13 @@
 </header>
 
 <div class="wrap">
+
+  <div class="banner" id="drift" hidden>
+    <span class="banner-icon">⏱</span>
+    <span id="drift-text"></span>
+    <button id="reset-clock" class="primary">Voltar ao presente</button>
+  </div>
+
   <div class="grid">
 
     <div class="stack">
@@ -477,6 +499,26 @@ async function loadClock() {
     `<b>${c.today}</b> · ${c.mode}` +
     (virtual ? '' : ' <span title="Suba com CLOCK_MODE=VIRTUAL_FROZEN para viajar no tempo">⚠</span>')
 
+  /**
+   * O AVISO QUE FALTAVA.
+   *
+   * O relógio é global ao container: quem clica em `+32` move o tempo para a
+   * aplicação que está integrando do outro lado também. E o sintoma não parece um
+   * relógio — parece que "o Pix nasce OVERDUE", porque uma cobrança criada com
+   * vencimento hoje já venceu faz um mês, do ponto de vista do simulador.
+   *
+   * Um estado que quebra o mundo lá fora tem que estar GRITANDO na tela, com a
+   * saída ao lado. Antes disto, o painel exibia a data no futuro em letras
+   * discretas, e ninguém ligava uma coisa à outra.
+   */
+  const drift = c.driftDays ?? 0
+  $('#drift').hidden = drift <= 0
+  if (drift > 0) {
+    $('#drift-text').innerHTML =
+      `O simulador está <b>${drift} dia${drift > 1 ? 's' : ''} no futuro</b> (${c.today}). ` +
+      `Toda cobrança nova nasce <b>OVERDUE</b>, porque o vencimento de hoje já passou para ele.`
+  }
+
   // Sem relógio virtual não há viagem no tempo — e o botão que não funciona
   // deve DIZER que não funciona, não falhar quando clicado.
   for (const b of document.querySelectorAll('[data-adv]')) {
@@ -484,6 +526,20 @@ async function loadClock() {
     b.title = virtual
       ? b.title
       : 'O relógio está em modo REAL. Suba com CLOCK_MODE=VIRTUAL_FROZEN.'
+  }
+}
+
+async function resetClock() {
+  const btn = $('#reset-clock')
+  btn.disabled = true
+  try {
+    await admin('/clock/reset', { method: 'POST' })
+    await loadClock()
+    await refresh()
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    btn.disabled = false
   }
 }
 
@@ -846,6 +902,7 @@ $('#tick').onclick = async () => {
   await admin('/tick', { method: 'POST' })
   await refresh()
 }
+$('#reset-clock').onclick = resetClock
 
 await loadClock()
 await refresh()

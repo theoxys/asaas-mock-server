@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { createHarness, TEST_API_KEY, type Harness } from '../helpers/harness.ts'
 
+/** As rotas de /_admin ficam fora de /v3 e não passam pelo ApiClient tipado. */
+const get = (app: Harness['app'], path: string) =>
+  app.app.handle(new Request(`http://localhost${path}`))
+
 let h: Harness
 
 beforeAll(async () => {
@@ -61,6 +65,45 @@ describe('relógio virtual', () => {
     expect(reports[0]!.tickKey).toBe('2026-01-06')
     expect(reports.at(-1)!.tickKey).toBe('2026-02-06')
     expect(h.app.ctx.clock.today()).toBe('2026-02-06')
+  })
+
+  /**
+   * O BUG QUE ESTES DOIS TESTES IMPEDEM DE VOLTAR.
+   *
+   * O relógio é global ao container. Um `+32` clicado no painel para ver um cartão
+   * creditar deixou o simulador 105 dias no futuro — e a aplicação que integrava do
+   * outro lado passou a criar cobranças que nasciam OVERDUE, porque o vencimento de
+   * hoje já tinha passado para ele.
+   *
+   * O sintoma não parece um relógio. Nada na tela ligava uma coisa à outra, e não
+   * havia como voltar sem reiniciar o container.
+   */
+  const clockNow = async () =>
+    (await (await get(h.app, '/_admin/clock')).json()) as { driftDays: number; today: string }
+
+  it('/_admin/clock expõe o desvio em relação ao tempo REAL', async () => {
+    // O sinal não importa (o harness parte de 2026-01-05, que é o PASSADO). O que
+    // importa é que avançar 32 dias mova o desvio em exatamente 32 — é esse número
+    // que o painel usa para avisar "você está no futuro".
+    const before = await clockNow()
+    await h.advance({ days: 32 })
+    const after = await clockNow()
+
+    expect(after.driftDays).toBe(before.driftDays + 32)
+  })
+
+  it('/_admin/clock/reset volta ao presente — a saída da viagem no tempo', async () => {
+    await h.advance({ days: 100 })
+
+    const res = await h.app.app.handle(
+      new Request('http://localhost/_admin/clock/reset', { method: 'POST' }),
+    )
+    expect(res.status).toBe(200)
+
+    const clock = await clockNow()
+    expect(clock.driftDays).toBe(0)
+    // E é o tempo REAL, não a data de partida do harness.
+    expect(clock.today).toBe(new Date().toISOString().slice(0, 10))
   })
 
   it('jobs diários são idempotentes: dez ticks no mesmo dia = uma execução', async () => {

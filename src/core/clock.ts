@@ -140,6 +140,23 @@ export const HOUR_MS = 3_600_000
 export const DAY_MS = 86_400_000
 
 /**
+ * O tempo REAL da máquina. O único `Date.now()` sancionado fora do relógio.
+ *
+ * Serve para responder "quanto o simulador está adiantado em relação ao mundo?" —
+ * a pergunta que o painel precisa fazer para avisar que uma cobrança nova vai
+ * nascer OVERDUE. Não use isto para NADA que entre no domínio: ali só entra
+ * `clock.now()`, e o teste de determinismo derruba quem tentar.
+ */
+export function realNowMs(): number {
+  return Date.now()
+}
+
+/** Dias que o relógio do simulador está à frente do tempo real. Negativo = passado. */
+export function driftDays(clock: Clock): number {
+  return Math.round((clock.nowMs() - realNowMs()) / DAY_MS)
+}
+
+/**
  * Constrói o relógio. Mora aqui, e não no bootstrap, porque semear um relógio
  * virtual exige ler o relógio REAL — e este é o único módulo autorizado a isso.
  *

@@ -9,7 +9,7 @@
  */
 import { desc, eq } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
-import { VirtualClock } from '../core/clock.ts'
+import { driftDays, realNowMs, VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
 import { badRequest } from '../core/errors.ts'
 import { accounts, apiKeys, webhookDeliveries, webhookEvents } from '../db/schema/index.ts'
@@ -39,12 +39,39 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
 
   return (
     app
+      /**
+       * `driftDays` é o campo que faltava — e a falta dele custou caro.
+       *
+       * O relógio é GLOBAL ao container: um clique em `+32` no painel move o tempo
+       * para TODO MUNDO, inclusive para a aplicação que está integrando do outro
+       * lado. O sintoma não parece um relógio: parece que "o Pix nasce OVERDUE",
+       * porque a cobrança criada com vencimento hoje já venceu faz um mês do ponto
+       * de vista do simulador.
+       *
+       * Sem um número aqui, nem o painel nem ninguém tem como avisar.
+       */
       .get('/clock', () => ({
         mode: ctx.clock.mode,
         now: ctx.clock.timestamp(),
         today: ctx.clock.today(),
         epochMs: ctx.clock.nowMs(),
+        /** Dias à frente do tempo REAL. 0 = o simulador está no presente. */
+        driftDays: driftDays(ctx.clock),
       }))
+
+      /**
+       * Volta o relógio para o tempo real. A saída da viagem no tempo.
+       *
+       * Existe porque `advance` só anda para a frente, e quem avançou 32 dias para
+       * ver um cartão creditar ficava preso lá — com toda cobrança nova nascendo
+       * vencida, sem nada na tela dizendo por quê.
+       */
+      .post('/clock/reset', () => {
+        virtual()
+        const clock = ctx.clock as unknown as { setTo(epochMs: number): void }
+        clock.setTo(realNowMs())
+        return { now: ctx.clock.timestamp(), today: ctx.clock.today(), driftDays: 0 }
+      })
 
       /**
        * Avança o relógio. UM TICK COMPLETO POR DIA SIMULADO — é o que faz uma

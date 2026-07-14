@@ -58,8 +58,26 @@ export interface BootstrapOptions {
   jobs?: Job[]
 }
 
+/**
+ * O relógio NÃO é persistido, e isso é uma escolha — não um esquecimento.
+ *
+ * A tabela `clock_state` existe e é LIDA aqui, mas nada nunca escreve nela: um
+ * comentário nesta função chegou a afirmar que "o relógio sobrevive ao restart",
+ * e era falso. A leitura fica porque `CLOCK_START` e um eventual seed passam por
+ * ela; a afirmação, não.
+ *
+ * Por que não persistir: o relógio é GLOBAL ao container e anda para frente com um
+ * clique no painel. Persistir transformaria um `+32` distraído num estado
+ * permanente — e o sintoma não parece um relógio, parece que "o Pix nasce
+ * OVERDUE" na aplicação que está integrando do outro lado. Aconteceu, e levou uma
+ * tarde para ser diagnosticado.
+ *
+ * Sem persistência, `docker restart` é a saída óbvia; com o botão "Voltar ao
+ * presente" no painel (POST /_admin/clock/reset), nem isso é preciso. O preço é
+ * que uma cobrança criada "no futuro" sobrevive a um restart que traz o relógio de
+ * volta — visível, e muito menos danoso que o contrário.
+ */
 async function buildClock(db: DB, config: Config): Promise<Clock> {
-  // O relógio virtual é persistido em clock_state e sobrevive ao restart.
   const [saved] = await db.select().from(clockState).where(eq(clockState.id, 1)).limit(1)
 
   return createClock({
