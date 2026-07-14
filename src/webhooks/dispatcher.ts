@@ -51,6 +51,48 @@ const dueColumns = {
 }
 
 /**
+ * Puxa de volta as entregas que ficaram agendadas no futuro. Chamado quando o
+ * relógio anda PARA TRÁS (POST /_admin/clock/reset).
+ *
+ * O BUG QUE ISTO IMPEDE DE VOLTAR: uma entrega falha durante uma viagem no tempo,
+ * o backoff a reagenda para daqui a uma hora — mas "daqui a uma hora" está três
+ * meses à frente do tempo real. Voltar o relógio ao presente NÃO desfaz esse
+ * agendamento: a entrega vira inalcançável, e como o `sendType` padrão do Asaas é
+ * SEQUENTIALLY, ela trava a fila INTEIRA por trás dela. Nenhum webhook chega mais,
+ * para sempre, e o sintoma aparece na ponta como "o pagamento consta RECEIVED mas
+ * meu pedido continua pendente".
+ *
+ * Devolve quantas foram reagendadas — o painel diz isso em voz alta, porque uma
+ * fila que volta a andar sozinha é exatamente o tipo de coisa que a pessoa precisa
+ * saber que aconteceu.
+ */
+export async function pullBackFutureDeliveries(ctx: AppContext, nowMs: number): Promise<number> {
+  const stuck = await ctx.db
+    .select({ id: webhookDeliveries.id })
+    .from(webhookDeliveries)
+    .where(
+      and(
+        eq(webhookDeliveries.status, 'PENDING'),
+        gt(webhookDeliveries.nextAttemptAtMs, nowMs),
+      ),
+    )
+
+  if (stuck.length === 0) return 0
+
+  await ctx.db
+    .update(webhookDeliveries)
+    .set({ nextAttemptAtMs: nowMs })
+    .where(
+      and(
+        eq(webhookDeliveries.status, 'PENDING'),
+        gt(webhookDeliveries.nextAttemptAtMs, nowMs),
+      ),
+    )
+
+  return stuck.length
+}
+
+/**
  * Entrega tudo que venceu.
  *
  * `paused` vem do scheduler (POST /_admin/webhooks/pause). Pausar é necessário

@@ -65,12 +65,28 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
        * Existe porque `advance` só anda para a frente, e quem avançou 32 dias para
        * ver um cartão creditar ficava preso lá — com toda cobrança nova nascendo
        * vencida, sem nada na tela dizendo por quê.
+       *
+       * Voltar o relógio NÃO basta: as entregas de webhook que o backoff reagendou
+       * enquanto estávamos no futuro continuam agendadas lá, inalcançáveis — e em
+       * SEQUENTIALLY (o padrão do Asaas) a primeira delas trava a fila inteira por
+       * trás. Por isso o reset também as puxa de volta. Sem isso, o relógio volta ao
+       * presente e nenhum webhook chega mais, para sempre.
        */
-      .post('/clock/reset', () => {
+      .post('/clock/reset', async () => {
         virtual()
         const clock = ctx.clock as unknown as { setTo(epochMs: number): void }
         clock.setTo(realNowMs())
-        return { now: ctx.clock.timestamp(), today: ctx.clock.today(), driftDays: 0 }
+
+        const { pullBackFutureDeliveries } = await import('../webhooks/dispatcher.ts')
+        const rescheduled = await pullBackFutureDeliveries(ctx, ctx.clock.nowMs())
+
+        return {
+          now: ctx.clock.timestamp(),
+          today: ctx.clock.today(),
+          driftDays: 0,
+          /** Entregas que estavam presas no futuro e voltaram para a fila. */
+          rescheduledDeliveries: rescheduled,
+        }
       })
 
       /**
@@ -118,8 +134,14 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
             throw badRequest('invalid_date', `Data inválida: "${body.date}".`)
           }
           clock.setTo(target.getTime())
+
+          // `set` também anda PARA TRÁS, e aí cai na mesma armadilha do reset: as
+          // entregas reagendadas no futuro ficam inalcançáveis e travam a fila.
+          const { pullBackFutureDeliveries } = await import('../webhooks/dispatcher.ts')
+          const rescheduled = await pullBackFutureDeliveries(ctx, ctx.clock.nowMs())
+
           const report = await scheduler.tick()
-          return { now: ctx.clock.timestamp(), report }
+          return { now: ctx.clock.timestamp(), report, rescheduledDeliveries: rescheduled }
         },
         { body: t.Object({ date: t.String() }) },
       )

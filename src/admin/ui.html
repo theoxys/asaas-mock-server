@@ -533,7 +533,21 @@ async function resetClock() {
   const btn = $('#reset-clock')
   btn.disabled = true
   try {
-    await admin('/clock/reset', { method: 'POST' })
+    const r = await admin('/clock/reset', { method: 'POST' })
+    // Voltar o relógio destrava entregas de webhook que tinham ficado agendadas no
+    // futuro. Uma fila que volta a andar sozinha é exatamente o tipo de coisa que
+    // a pessoa precisa saber que aconteceu — senão os eventos chegam "do nada".
+    const n = r.rescheduledDeliveries
+    if (n > 0) {
+      const fila =
+        n === 1
+          ? '1 entrega de webhook estava agendada no futuro e voltou para a fila.'
+          : `${n} entregas de webhook estavam agendadas no futuro e voltaram para a fila.`
+      alert(
+        `Relógio de volta ao presente.\n\n${fila}\n\n` +
+          `Em SEQUENTIALLY, uma entrega presa trava todas as seguintes — elas saem no próximo tick.`,
+      )
+    }
     await loadClock()
     await refresh()
   } catch (e) {

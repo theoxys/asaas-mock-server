@@ -65,6 +65,85 @@ const webhookRow = (id: string) =>
     .limit(1)
     .then((r) => r[0]!)
 
+// ──────────────────────────────────── viagem no tempo × fila de entregas
+
+describe('voltar o relógio destrava a fila', () => {
+  /**
+   * O BUG QUE ESTE TESTE IMPEDE DE VOLTAR — e ele custou uma tarde.
+   *
+   * Alguém clica `+32` no painel para ver um cartão creditar. Nesse meio-tempo uma
+   * entrega falha, e o backoff a reagenda para "daqui a 30 segundos" — só que esse
+   * instante está um mês à frente do tempo REAL. Voltar o relógio ao presente não
+   * desfaz o agendamento: a entrega vira inalcançável e, como o `sendType` é
+   * SEQUENTIALLY, ela trava a fila INTEIRA por trás dela. Nenhum webhook chega mais.
+   *
+   * Na ponta, o sintoma não parece nada disso. Parece "o Asaas diz que o pagamento
+   * foi RECEIVED, mas meu pedido continua pendente" — e você vai procurar o bug na
+   * sua rota de status, que está certa.
+   */
+  it('reset puxa de volta as entregas que ficaram agendadas no futuro', async () => {
+    await createWebhook({ sendType: 'SEQUENTIALLY' })
+
+    // Viaja para o futuro e falha uma entrega LÁ: o backoff a reagenda para um
+    // instante que, visto do presente, ainda não chegou.
+    //
+    // Tem de ser o futuro do relógio REAL, não o do harness — ele parte de janeiro
+    // de 2026, então `advance({days: 30})` ainda cairia no passado e a entrega não
+    // ficaria presa. É justamente a assimetria que torna o bug difícil de ver.
+    const futuro = new Date(Date.now() + 30 * 86_400_000).toISOString()
+    await h.app.app.handle(
+      new Request('http://localhost/_admin/clock/set', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ date: futuro }),
+      }),
+    )
+
+    h.sink.respondWith(500)
+    await emit('PAYMENT_CREATED', { id: 'pay_1', status: 'PENDING' })
+    await h.tick()
+
+    const [failed] = await deliveries()
+    expect(failed!.attempt).toBe(1)
+    expect(failed!.nextAttemptAtMs).toBeGreaterThan(Date.now()) // presa no futuro
+
+    // O endpoint volta ao ar e um evento novo acontece no PRESENTE.
+    const res = await h.app.app.handle(
+      new Request('http://localhost/_admin/clock/reset', { method: 'POST' }),
+    )
+    const body = (await res.json()) as { rescheduledDeliveries: number }
+    expect(body.rescheduledDeliveries).toBe(1)
+
+    h.sink.respondWith(200)
+    await h.tick()
+
+    // Sem o pull-back, estes expects falham: a fila ficaria parada atrás da entrega
+    // agendada para daqui a 30 dias, e o sink nunca veria a reentrega.
+    const [drained] = await deliveries()
+    expect(drained!.status).toBe('DELIVERED')
+    expect(drained!.attempt).toBe(2) // a que tomou 500, e a que passou
+    expect(h.sink.received.length).toBe(2)
+  })
+
+  it('o pull-back não mexe em entrega já entregue nem ressuscita expirada', async () => {
+    await createWebhook({ sendType: 'SEQUENTIALLY' })
+
+    h.sink.respondWith(200)
+    await emit('PAYMENT_CREATED', { id: 'pay_ok', status: 'PENDING' })
+    await h.tick()
+
+    const [done] = await deliveries()
+    expect(done!.status).toBe('DELIVERED')
+    const before = done!.nextAttemptAtMs
+
+    await h.app.app.handle(new Request('http://localhost/_admin/clock/reset', { method: 'POST' }))
+
+    const [after] = await deliveries()
+    expect(after!.status).toBe('DELIVERED')
+    expect(after!.nextAttemptAtMs).toBe(before)
+  })
+})
+
 // ────────────────────────────────────────────────────────── CRUD
 
 describe('webhooks — CRUD', () => {
