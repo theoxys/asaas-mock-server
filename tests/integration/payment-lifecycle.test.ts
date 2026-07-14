@@ -45,12 +45,24 @@ describe('Pix — credita na hora e pula CONFIRMED', () => {
     expect(created.body.value).toBe(100)
     expect(created.body.netValue).toBe(98.01)
 
+    // Pix PENDENTE não tem a chave `confirmedDate` — ela não vem nula, ela não
+    // está lá. Capturado.
+    expect('confirmedDate' in created.body).toBe(false)
+
     const paid = await h.api.call('confirm-payment', { params: { id: created.body.id } })
 
     // O Pix NÃO passa por CONFIRMED — vai direto a RECEIVED, com o dinheiro já
     // disponível. Todo o resto (boleto, cartão) para em CONFIRMED antes.
     expect(paid.body.status).toBe('RECEIVED')
     expect(paid.body.creditDate).toBe('2026-01-05')
+
+    /**
+     * E DEPOIS DE PAGO a chave aparece. Nós só a emitíamos para cartão, então um
+     * Pix pago devolvia `confirmedDate: undefined` — e o cliente que lê esse campo
+     * para saber quando o pagamento foi reconhecido recebia nada aqui e uma data no
+     * Asaas. Capturado (tools/probe-pix.ts).
+     */
+    expect(paid.body.confirmedDate).toBe('2026-01-05')
 
     const ledger = await ledgerOf(h.accountId)
     expect(ledger.map((l) => l.type)).toEqual(['PAYMENT_RECEIVED', 'PAYMENT_FEE'])
@@ -59,6 +71,27 @@ describe('Pix — credita na hora e pula CONFIRMED', () => {
     expect(ledger[1]!.balanceCents).toBe(9801) // saldo final = netValue
 
     await h.assertLedgerBalances()
+  })
+
+  /**
+   * Confirmar duas vezes é o caso REAL: um botão clicado duas vezes, um webhook
+   * duplicado, uma retentativa. O Asaas tem frase própria para isso — devolvíamos a
+   * frase genérica da máquina de estados. Capturado (tools/probe-pix.ts).
+   */
+  it('confirmar uma cobrança JÁ PAGA → "Cobrança já confirmada."', async () => {
+    const cus = await customer()
+    const created = await h.api.call('create-new-payment', {
+      body: { customer: cus, billingType: 'PIX', value: 100, dueDate: '2026-01-10' },
+    })
+
+    await h.api.call('confirm-payment', { params: { id: created.body.id } })
+    const again = await h.api.call('confirm-payment', { params: { id: created.body.id } })
+
+    expect(again.status).toBe(400)
+    expect(again.body.errors[0]).toEqual({
+      code: 'invalid_action',
+      description: 'Cobrança já confirmada.',
+    })
   })
 
   it('nenhum webhook PAYMENT_CONFIRMED é emitido para Pix', async () => {

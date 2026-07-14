@@ -92,9 +92,14 @@ export const financeHandlers: HandlerMap = {
    * data deixaria a coluna `balance` fora de ordem, que é exatamente o que o
    * extrato existe para mostrar.
    *
-   * TODO(regra): a doc não define a ordem DEFAULT nem os valores aceitos em
-   * `order`. Usamos `asc` (cronológico) por default, que é a única ordem em que
-   * a coluna `balance` faz sentido de cima para baixo.
+   * A ordem DEFAULT é `desc` — o mais recente primeiro. A doc não diz, e nós
+   * tínhamos escolhido `asc` por parecer mais lógico (a coluna `balance` lê melhor
+   * de cima para baixo). A captura (tools/probe-pix.ts) mostrou o contrário: o
+   * extrato real devolve a taxa de hoje antes do lançamento de maio.
+   *
+   * Não é cosmético: quem lê `data[0]` para pegar "o último lançamento" — e é o que
+   * se faz com um extrato — pegava o PRIMEIRO da vida da conta aqui, e o mais
+   * recente no Asaas.
    */
   'retrieve-extract': async ({ ctx, auth, query }) => {
     const { limit, offset } = paginationParams(query)
@@ -102,7 +107,7 @@ export const financeHandlers: HandlerMap = {
     const startDate = isoDateParam(query, 'startDate')
     const finishDate = isoDateParam(query, 'finishDate')
 
-    const order = String(query.order ?? 'asc').toLowerCase()
+    const order = String(query.order ?? 'desc').toLowerCase()
     if (order !== 'asc' && order !== 'desc') {
       throw invalid('order', 'A ordenação deve ser "asc" ou "desc".')
     }

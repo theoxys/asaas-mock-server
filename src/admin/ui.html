@@ -282,6 +282,11 @@
     background: var(--red-50); color: var(--red-600);
   }
 
+  /* A tabela não pode empurrar o card: com muitas colunas ela rola DENTRO dele, e
+     a página nunca ganha barra horizontal. */
+  .card table { min-width: 100%; }
+  .scroll { overflow-x: auto; }
+
   .empty {
     padding: var(--pad-2xl) var(--pad-lg); color: var(--text-medium);
     text-align: center; font-size: 14px; line-height: 150%;
@@ -595,6 +600,34 @@ function renderDetail(a, d) {
       setTimeout(() => (b.textContent = 'copiar'), 1200)
     }
   }
+  for (const b of $('#detail').querySelectorAll('[data-pay]')) {
+    b.onclick = () => simulatePayment(a, b)
+  }
+}
+
+/**
+ * "O QR Code foi pago."
+ *
+ * A chamada é feita COM A CHAVE DA CONTA — não pelo /_admin. É de propósito: assim
+ * o botão exercita exatamente o mesmo caminho que a sua aplicação vai exercitar, e
+ * um erro de autenticação ou de isolamento aparece aqui, no clique, e não só no seu
+ * teste.
+ */
+async function simulatePayment(account, btn) {
+  const id = btn.dataset.pay
+  btn.disabled = true
+  btn.textContent = 'pagando…'
+  try {
+    await v3(`/sandbox/payment/${id}/confirm`, account.apiKey, {
+      method: 'POST',
+      body: '{}',
+    })
+    await refresh()
+  } catch (e) {
+    alert(e.message)
+    btn.disabled = false
+    btn.textContent = 'simular pagamento'
+  }
 }
 
 function paymentRows(list) {
@@ -605,11 +638,12 @@ function paymentRows(list) {
       <code>POST /v3/payments</code> com a chave acima.
     </div>`
   }
-  return `<table>
+  return `<div class="scroll"><table>
     <thead><tr>
       <th>Cobrança</th><th>Tipo</th><th>Status</th>
       <th>Vence</th><th>Crédito</th>
       <th class="num">Valor</th><th class="num">Líquido</th>
+      <th></th>
     </tr></thead>
     <tbody>${list
       .map(
@@ -621,11 +655,32 @@ function paymentRows(list) {
         <td>${p.creditDate ?? '—'}</td>
         <td class="num">${money(p.value)}</td>
         <td class="num">${money(p.netValue)}</td>
+        <td>${payAction(p)}</td>
       </tr>`,
       )
       .join('')}</tbody>
-  </table>`
+  </table></div>`
 }
+
+/** Cobranças em aberto podem ser pagas; as demais, não. */
+const PAYABLE = ['PENDING', 'OVERDUE', 'AWAITING_RISK_ANALYSIS']
+
+/**
+ * O botão "simular pagamento" — o mesmo que o painel do sandbox do Asaas tem.
+ *
+ * Chama `POST /v3/sandbox/payment/{id}/confirm`, que é um endpoint DA SPEC oficial,
+ * não uma invenção nossa: é a forma suportada de dizer "o QR Code foi pago" sem um
+ * banco de verdade do outro lado. Ele dispara a transição inteira — status, ledger,
+ * webhook, split — porque tudo passa por `applyTransition`.
+ *
+ * Só aparece em cobrança em aberto: um botão que erra quando clicado é pior que
+ * botão nenhum.
+ */
+const payAction = (p) =>
+  PAYABLE.includes(p.status)
+    ? `<button class="ghost" data-pay="${esc(p.id)}"
+         title="Simula o pagamento — POST /v3/sandbox/payment/${esc(p.id)}/confirm">pagar</button>`
+    : ''
 
 function extractRows(list) {
   if (!list) return `<div class="empty">carregando…</div>`

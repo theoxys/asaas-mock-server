@@ -62,7 +62,10 @@ describe('GET /v3/financialTransactions — o extrato', () => {
   it('o Pix recebido gera DUAS linhas, e a coluna `balance` acumula', async () => {
     const paymentId = await receivePix(100)
 
-    const res = await h.api.call('retrieve-extract')
+    // `order=asc` EXPLÍCITO: o default do Asaas é `desc` (o mais recente primeiro),
+    // capturado do sandbox. Aqui queremos a ordem cronológica, que é a única em que
+    // a coluna `balance` faz sentido de cima para baixo — que é o que este teste mede.
+    const res = await h.api.call('retrieve-extract', { query: { order: 'asc' } })
     expect(res.status).toBe(200)
     expect(res.body.totalCount).toBe(2)
 
@@ -84,6 +87,23 @@ describe('GET /v3/financialTransactions — o extrato', () => {
     expect(fee.splitId).toBeNull()
 
     await h.assertLedgerBalances()
+  })
+
+  /**
+   * A ORDEM PADRÃO É `desc`. Capturado do sandbox (tools/probe-pix.ts) — a doc não
+   * diz, e nós tínhamos escolhido `asc` por parecer mais lógico.
+   *
+   * Não é cosmético, e é por isso que vira teste: quem lê `data[0]` para pegar "o
+   * último lançamento" — que é o que se faz com um extrato — pegava o PRIMEIRO da
+   * vida da conta aqui, e o mais recente no Asaas.
+   */
+  it('sem `order`, o extrato vem do MAIS RECENTE para o mais antigo', async () => {
+    await receivePix(100)
+
+    const res = await h.api.call('retrieve-extract')
+
+    expect(res.body.data[0].type).toBe('PAYMENT_FEE')
+    expect(res.body.data[1].type).toBe('PAYMENT_RECEIVED')
   })
 
   it('`order=desc` inverte o extrato sem embaralhar o saldo de cada linha', async () => {

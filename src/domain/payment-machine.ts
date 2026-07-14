@@ -152,6 +152,15 @@ export function plan(p: PaymentState, trigger: Trigger, deps: MachineDeps): Plan
     case 'CAPTURE': {
       if (trigger.kind === 'CAPTURE' && p.status !== 'AUTHORIZED') reject('capturar')
       if (trigger.kind !== 'CAPTURE' && !OPEN.includes(p.status) && p.status !== 'AUTHORIZED') {
+        /**
+         * Pagar uma cobrança JÁ PAGA tem frase própria no Asaas — capturado
+         * (tools/probe-pix.ts). É o erro que um webhook duplicado, um botão clicado
+         * duas vezes ou uma retentativa produz, então é o erro que um cliente mais
+         * vê. Devolvíamos a frase genérica da máquina de estados.
+         */
+        if (PAID.includes(p.status)) {
+          throw new TransitionError('invalid_action', 'Cobrança já confirmada.')
+        }
         reject('confirmar pagamento')
       }
 

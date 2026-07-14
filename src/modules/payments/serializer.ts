@@ -152,8 +152,22 @@ export async function serializePayment(
   // ── Regra 2: campos por meio de pagamento ──
   if (p.billingType === 'BOLETO') out.canBePaidAfterDueDate = p.canBePaidAfterDueDate
   if (p.billingType === 'CREDIT_CARD') {
+    // O cartão SEMPRE tem a chave — mesmo PENDING, e aí vale `null`.
     out.confirmedDate = p.confirmedDate
     out.creditCard = card
+  } else if (p.confirmedDate) {
+    /**
+     * E QUALQUER meio ganha a chave depois de confirmado. Nós só a emitíamos para
+     * cartão, então um Pix PAGO devolvia `confirmedDate: undefined` — e o cliente
+     * que lê esse campo para saber quando o pagamento foi reconhecido recebia nada
+     * aqui e uma data no Asaas.
+     *
+     * A regra real, capturada (tools/probe-pix.ts):
+     *   PIX/BOLETO PENDING   → chave AUSENTE
+     *   PIX/BOLETO RECEIVED  → chave presente, com a data
+     *   CREDIT_CARD          → chave sempre presente (null enquanto PENDING)
+     */
+    out.confirmedDate = p.confirmedDate
   }
 
   // ── Regra 1: relacionais só aparecem quando existem ──
