@@ -94,6 +94,14 @@ export async function pullBackFutureDeliveries(ctx: AppContext, nowMs: number): 
 
 export interface QueueHealth {
   webhookId: string
+  /**
+   * A CONTA DONA do webhook. Sem isto o painel mente por omissão: cada subconta
+   * tem os seus próprios webhooks (um evento da conta X só vai para os webhooks
+   * de X), e uma lista sem dono vira "por que tenho 8 webhooks?" — além de fazer
+   * o botão "Reativar fila" chamar a /v3 com a chave errada e tomar 404.
+   */
+  accountId: string
+  accountName: string
   name: string
   url: string
   sendType: string
@@ -126,7 +134,14 @@ export interface QueueHealth {
  */
 export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
   const now = ctx.clock.nowMs()
+  const { accounts } = await import('../db/schema/index.ts')
+
   const configs = await ctx.db.select().from(webhooks)
+  const accountRows = await ctx.db
+    .select({ id: accounts.id, name: accounts.name })
+    .from(accounts)
+  const nameOf = new Map(accountRows.map((a) => [a.id, a.name]))
+
   const out: QueueHealth[] = []
 
   for (const cfg of configs) {
@@ -142,6 +157,8 @@ export async function queueHealth(ctx: AppContext): Promise<QueueHealth[]> {
     const head = pending[0]
     const base = {
       webhookId: cfg.id,
+      accountId: cfg.accountId,
+      accountName: nameOf.get(cfg.accountId) ?? cfg.accountId,
       name: cfg.name,
       url: cfg.url,
       sendType: cfg.sendType,

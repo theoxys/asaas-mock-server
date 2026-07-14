@@ -231,6 +231,14 @@
   }
   .tag.main { background: var(--primary-soft); color: var(--primary); }
 
+  /* Nome + tags do webhook numa linha. NÃO use .kv aqui: ela é um grid de duas
+     colunas (120px 1fr), e a tag esticava pela linha inteira. */
+  .hook-hdr {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: var(--pad-xs); font-size: 14px;
+  }
+  .hook-hdr .tag { flex: 0 0 auto; }
+
   /* ── detalhe ──────────────────────────────────────────────── */
   .kv {
     display: grid; grid-template-columns: 120px 1fr;
@@ -924,8 +932,15 @@ const BLOCK_TEXT = {
 }
 
 async function loadHooks() {
-  const key = state.selected?.apiKey
   const { webhooks } = await admin('/webhooks/queue')
+
+  /**
+   * Cada webhook age COM A CHAVE DA SUA PRÓPRIA CONTA — não com a da conta
+   * selecionada na tela. No Asaas, um evento da conta X só vai para os webhooks de
+   * X, e a chave de X é a única que enxerga o webhook de X: usar a chave errada
+   * devolve 404 "Webhook não encontrado". É por isso que a lista mostra o dono.
+   */
+  const keyOf = new Map(state.accounts.map((a) => [a.id, a.apiKey]))
 
   $('#hooks-count').textContent = webhooks.length || ''
 
@@ -963,20 +978,27 @@ async function loadHooks() {
     return `
       <div class="body" style="border-top:1px solid var(--border)">
         ${aviso}
-        <div class="kv">
+        <div class="hook-hdr">
           <b>${esc(w.name)}</b>
           <span class="tag ${w.sendType === 'SEQUENTIALLY' ? 'main' : ''}">${w.sendType}</span>
           ${w.enabled ? '' : '<span class="tag">desativado</span>'}
           ${w.interrupted ? '<span class="tag">interrompido</span>' : ''}
           <span class="tag">${w.pending} na fila</span>
         </div>
-        <div class="mono hint" style="margin:4px 0 var(--pad-sm)">${esc(w.url)}</div>
+        <div class="hint" style="margin:4px 0 var(--pad-sm)">
+          conta <b>${esc(w.accountName)}</b> ·
+          <span class="mono">${esc(w.url)}</span>
+        </div>
         <div class="opts">
-          <button class="primary" data-release="${w.webhookId}">Reativar fila</button>
-          <button class="ghost" data-toggle="${w.webhookId}" data-on="${w.enabled}">
+          <button class="primary" data-release="${w.webhookId}" data-acct="${w.accountId}">
+            Reativar fila
+          </button>
+          <button class="ghost" data-toggle="${w.webhookId}" data-acct="${w.accountId}"
+                  data-on="${w.enabled}">
             ${w.enabled ? 'Desativar' : 'Ativar'}
           </button>
-          <button class="ghost" data-sendtype="${w.webhookId}" data-cur="${w.sendType}">
+          <button class="ghost" data-sendtype="${w.webhookId}" data-acct="${w.accountId}"
+                  data-cur="${w.sendType}">
             Trocar para ${w.sendType === 'SEQUENTIALLY' ? 'NON_SEQUENTIALLY' : 'SEQUENTIALLY'}
           </button>
         </div>
@@ -984,8 +1006,6 @@ async function loadHooks() {
   }
 
   $('#hooks-body').innerHTML = webhooks.map(card).join('')
-
-  if (!key) return // sem conta selecionada não há chave para chamar a /v3
 
   const act = async (fn) => {
     try {
@@ -997,14 +1017,19 @@ async function loadHooks() {
     }
   }
 
+  /** A chave do DONO do webhook. Com a de outra conta, a /v3 devolve 404. */
+  const keyFor = (el) => keyOf.get(el.dataset.acct)
+
   for (const el of $('#hooks').querySelectorAll('[data-release]')) {
     el.onclick = () =>
-      act(() => v3(`/webhooks/${el.dataset.release}/removeBackoff`, key, { method: 'POST' }))
+      act(() =>
+        v3(`/webhooks/${el.dataset.release}/removeBackoff`, keyFor(el), { method: 'POST' }),
+      )
   }
   for (const el of $('#hooks').querySelectorAll('[data-toggle]')) {
     el.onclick = () =>
       act(() =>
-        v3(`/webhooks/${el.dataset.toggle}`, key, {
+        v3(`/webhooks/${el.dataset.toggle}`, keyFor(el), {
           method: 'PUT',
           body: JSON.stringify({ enabled: el.dataset.on !== 'true' }),
         }),
@@ -1013,7 +1038,7 @@ async function loadHooks() {
   for (const el of $('#hooks').querySelectorAll('[data-sendtype]')) {
     el.onclick = () =>
       act(() =>
-        v3(`/webhooks/${el.dataset.sendtype}`, key, {
+        v3(`/webhooks/${el.dataset.sendtype}`, keyFor(el), {
           method: 'PUT',
           body: JSON.stringify({
             sendType:

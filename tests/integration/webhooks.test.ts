@@ -153,6 +153,46 @@ describe('queueHealth — por que a fila não anda', () => {
     return body.webhooks[0]!
   }
 
+  /**
+   * Cada conta tem os SEUS webhooks, e a chave dela é a única que os enxerga.
+   *
+   * Sem o dono nesta resposta, o painel listava os 8 webhooks de 8 contas
+   * diferentes como se fossem 8 registros duplicados da mesma ("por que tenho 8
+   * webhooks?"), e o botão "Reativar fila" chamava a /v3 com a chave da conta
+   * selecionada — 404 em todos, menos no dela.
+   */
+  it('cada webhook vem com a conta DONA — a chave de outra conta não o enxerga', async () => {
+    await createWebhook({ name: 'do master' })
+
+    const w = await health()
+    expect(w.accountId).toBe(h.accountId)
+    expect(w.accountName).toBeString()
+
+    // A prova de que o dono importa: a chave de outra conta devolve 404.
+    const outra = await h.api.call('create-subaccount', {
+      body: {
+        name: 'Produtora',
+        email: 'produtora@localhost',
+        cpfCnpj: '24971563792',
+        mobilePhone: '11999999999',
+        incomeValue: 5000,
+        address: 'Rua X',
+        addressNumber: '1',
+        province: 'Centro',
+        postalCode: '01310100',
+      },
+    })
+    expect(outra.status).toBe(200)
+
+    const res = await h.app.app.handle(
+      new Request(`http://localhost/v3/webhooks/${w.webhookId}/removeBackoff`, {
+        method: 'POST',
+        headers: { access_token: outra.body.apiKey },
+      }),
+    )
+    expect(res.status).toBe(404)
+  })
+
   it('fila que anda não reporta bloqueio', async () => {
     await createWebhook({ sendType: 'SEQUENTIALLY' })
     h.sink.respondWith(200)
