@@ -4,9 +4,11 @@
 import { describe, expect, it } from 'bun:test'
 import {
   BRAND_RULES,
+  CARD_ERRORS,
   CreditCardError,
   detectBrand,
   inspectCard,
+  isExpired,
   luhn,
   normalizeCardNumber,
   outcomeFor,
@@ -92,67 +94,142 @@ describe('cartões de teste do sandbox', () => {
   })
 
   it('a tabela é injetável', () => {
-    const custom = { ...TEST_CARDS, '4111111111111111': 'DECLINE' as const }
+    const custom = [
+      ...TEST_CARDS,
+      { number: '4111111111111111', outcome: 'DECLINE' as const, label: 'x', real: false },
+    ]
     expect(outcomeFor('4111111111111111', custom)).toBe('DECLINE')
   })
 })
 
+/**
+ * NOW é fixo: "expirado" é a única regra deste arquivo que depende do tempo, e um
+ * teste que use o relógio da máquina passa hoje e quebra em 2031.
+ */
+const NOW = new Date('2026-07-14T12:00:00Z')
+
 describe('inspectCard', () => {
   it('devolve só os 4 últimos dígitos — nunca o número', () => {
-    const info = inspectCard({
-      number: '4444444444444444',
-      holderName: 'John Doe',
-      expiryMonth: '12',
-      expiryYear: '2030',
-      ccv: '123',
-    })
+    const info = inspectCard(
+      {
+        number: '4444444444444444',
+        holderName: 'John Doe',
+        expiryMonth: '12',
+        expiryYear: '2030',
+        ccv: '123',
+      },
+      NOW,
+    )
 
     expect(info).toEqual({ last4: '4444', brand: 'VISA', outcome: 'APPROVE' })
     // O PAN não sobrevive: não existe campo nenhum com 16 dígitos no resultado.
     expect(JSON.stringify(info)).not.toContain('4444444444444444')
   })
 
-  it('o cartão de teste é válido POR DECRETO — a tabela vem antes do Luhn', () => {
-    // 4444444444444444 falha no Luhn e ainda assim é aceito.
-    expect(luhn('4444444444444444')).toBe(false)
-    expect(inspectCard({ number: '4444444444444444' }).outcome).toBe('APPROVE')
-  })
-
   it('um cartão válido qualquer aprova', () => {
-    expect(inspectCard({ number: '4111111111111111' }).outcome).toBe('APPROVE')
+    expect(inspectCard({ number: '4111111111111111' }, NOW).outcome).toBe('APPROVE')
   })
 
-  it('o cartão de recusa devolve DECLINE (mas é um cartão válido)', () => {
-    const info = inspectCard({ number: '5184019740373151' })
+  it('o cartão de recusa devolve DECLINE (mas é um cartão bem-formado)', () => {
+    const info = inspectCard({ number: '5184019740373151' }, NOW)
     expect(info).toEqual({ last4: '3151', brand: 'MASTERCARD', outcome: 'DECLINE' })
   })
 
-  const rejects = (card: Parameters<typeof inspectCard>[0], why: string) => {
+  /**
+   * O Asaas NÃO valida Luhn — capturado do sandbox. Este teste é o que impede
+   * alguém de "consertar" isso de volta: recusar aqui um número que o Asaas
+   * aprova faz um cartão bom quebrar no teste local e passar em produção.
+   */
+  it('NÃO valida Luhn — o Asaas aprova dígito verificador errado', () => {
+    expect(luhn('4111111111111112')).toBe(false)
+    expect(inspectCard({ number: '4111111111111112' }, NOW).outcome).toBe('APPROVE')
+
+    expect(luhn('4444444444444444')).toBe(false)
+    expect(inspectCard({ number: '4444444444444444' }, NOW).outcome).toBe('APPROVE')
+  })
+
+  it('CVV de 1 dígito é ACEITO — só o vazio é recusado', () => {
+    expect(inspectCard({ number: '4111111111111111', ccv: '1' }, NOW).outcome).toBe('APPROVE')
+  })
+
+  /** Cada caso: o (code, description) EXATO que o sandbox devolveu. */
+  const rejects = (
+    card: Parameters<typeof inspectCard>[0],
+    expected: { code: string; description: string },
+    why: string,
+  ) => {
     it(why, () => {
-      expect(() => inspectCard(card)).toThrow(CreditCardError)
+      expect(() => inspectCard(card, NOW)).toThrow(CreditCardError)
       try {
-        inspectCard(card)
+        inspectCard(card, NOW)
       } catch (err) {
-        expect((err as CreditCardError).code).toBe('invalid_creditCard')
+        expect((err as CreditCardError).code).toBe(expected.code)
+        expect((err as CreditCardError).description).toBe(expected.description)
       }
     })
   }
 
-  rejects({ number: '5184019740373152' }, 'número que falha no Luhn → invalid_creditCard')
-  rejects({ number: '411111111111' }, 'número curto demais → invalid_creditCard')
-  rejects({ number: '4111a111111111111' }, 'número com letra → invalid_creditCard')
+  rejects({ number: '411111111111' }, CARD_ERRORS.INVALID_NUMBER, 'número curto demais')
+  rejects({ number: '4111a111111111111' }, CARD_ERRORS.INVALID_NUMBER, 'número com letra')
   rejects(
     { number: '4111111111111111', expiryMonth: '13' },
-    'mês de expiração fora de 1–12 → invalid_creditCard',
+    CARD_ERRORS.INVALID_MONTH,
+    'mês fora de 1–12',
   )
   rejects(
-    { number: '4111111111111111', expiryYear: '26' },
-    'ano de expiração com 2 dígitos → invalid_creditCard',
+    { number: '4111111111111111', expiryMonth: '05', expiryYear: '2020' },
+    CARD_ERRORS.EXPIRED,
+    'cartão expirado',
   )
+  rejects({ number: '4111111111111111', ccv: '' }, CARD_ERRORS.MISSING_CVV, 'CVV vazio')
   rejects(
-    { number: '4111111111111111', ccv: '12' },
-    'código de segurança com 2 dígitos → invalid_creditCard',
+    { number: '4111111111111111', holderName: '' },
+    CARD_ERRORS.MISSING_HOLDER,
+    'titular vazio',
   )
+
+  it('o mês de vencimento é INCLUSIVO — um cartão 07/2026 vale em 14/07/2026', () => {
+    expect(isExpired(7, 2026, NOW)).toBe(false)
+    expect(isExpired(6, 2026, NOW)).toBe(true)
+  })
+})
+
+describe('cartões de simulação (extensão nossa, não existe no Asaas)', () => {
+  it('cada cartão de simulação força o SEU erro, com a mensagem real do Asaas', () => {
+    const cases: Array<[string, keyof typeof CARD_ERRORS]> = [
+      ['4000000000000069', 'EXPIRED'],
+      ['4000000000000101', 'INVALID_NUMBER'],
+    ]
+
+    for (const [number, outcome] of cases) {
+      try {
+        inspectCard({ number, expiryMonth: '12', expiryYear: '2035', ccv: '123' }, NOW)
+        throw new Error(`${number} deveria ter recusado`)
+      } catch (err) {
+        expect(err).toBeInstanceOf(CreditCardError)
+        expect((err as CreditCardError).code).toBe(CARD_ERRORS[outcome].code)
+        expect((err as CreditCardError).description).toBe(CARD_ERRORS[outcome].description)
+      }
+    }
+  })
+
+  it('4000000000000002 recusa na AUTORIZAÇÃO (vira token, e o token recusa)', () => {
+    expect(inspectCard({ number: '4000000000000002' }, NOW).outcome).toBe('DECLINE')
+  })
+
+  /**
+   * A tabela do painel É a tabela do motor. Sem isto, a tela pode anunciar um
+   * cartão que o servidor não honra — e a mentira sai bonita, com botão de copiar.
+   */
+  it('todo cartão da tabela faz o que a tabela promete', () => {
+    for (const c of TEST_CARDS) {
+      if (c.outcome === 'APPROVE' || c.outcome === 'DECLINE') {
+        expect(inspectCard({ number: c.number }, NOW).outcome).toBe(c.outcome)
+      } else {
+        expect(() => inspectCard({ number: c.number }, NOW)).toThrow(CreditCardError)
+      }
+    }
+  })
 })
 
 describe('parcelamento por bandeira', () => {

@@ -1,0 +1,524 @@
+[
+  {
+    "number": "5162306219378829",
+    "hunch": "doc do Asaas — aprovado",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_goqlln9ijobkq74x",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 8829",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "8829",
+        "creditCardBrand": "MASTERCARD",
+        "creditCardToken": "b3b603a9-5bda-4916-b6de-bfeca47791c7"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/goqlln9ijobkq74x",
+      "invoiceNumber": "15929916",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/1521465693549927",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "4444444444444444",
+    "hunch": "nosso mock — aprovado (não passa no Luhn!)",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_66psoc6g2ldfh0cz",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 4444",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "4444",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "69eb5386-2535-460e-8781-5e1f5684e2fe"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/66psoc6g2ldfh0cz",
+      "invoiceNumber": "15929922",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/6499269455337446",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "5184019740373151",
+    "hunch": "nosso mock — recusado",
+    "httpStatus": 400,
+    "response": {
+      "errors": [
+        {
+          "code": "invalid_action",
+          "description": "Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente."
+        }
+      ]
+    }
+  },
+  {
+    "number": "4916561358240741",
+    "hunch": "nosso mock — recusado",
+    "httpStatus": 400,
+    "response": {
+      "errors": [
+        {
+          "code": "invalid_action",
+          "description": "Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente."
+        }
+      ]
+    }
+  },
+  {
+    "number": "4000000000000002",
+    "hunch": "canônico — generic decline",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_55si3aq6cdsy2ego",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 0002",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "0002",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "11f46f8d-f3ae-425e-9c05-2ba92fbf1ce7"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/55si3aq6cdsy2ego",
+      "invoiceNumber": "15929926",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/3197032155578184",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "4000000000009995",
+    "hunch": "canônico — insufficient funds",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_knsfbaf7ehqwt62p",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 9995",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "9995",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "1d46a114-f32c-4367-82bd-14af8ac03bbf"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/knsfbaf7ehqwt62p",
+      "invoiceNumber": "15929928",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/0740579517617658",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "4000000000000069",
+    "hunch": "canônico — expired card",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_j1g51bujunvlaxq1",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 0069",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "0069",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "206d3579-3322-445c-8c23-f85cc85a97e2"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/j1g51bujunvlaxq1",
+      "invoiceNumber": "15929930",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/9846346001556827",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "4000000000000127",
+    "hunch": "canônico — incorrect CVC",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_hn8mi985py636a6a",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 0127",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "0127",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "cc5f9aec-24ce-409e-a586-ac12465247b0"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/hn8mi985py636a6a",
+      "invoiceNumber": "15929931",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/0779653048038959",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "4000000000000119",
+    "hunch": "canônico — processing error",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_ipmiwj72ll9ghdi4",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 0119",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "0119",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "b2259770-f458-4170-8a85-8fc9b172f4b9"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/ipmiwj72ll9ghdi4",
+      "invoiceNumber": "15929932",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/7029882927600955",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  },
+  {
+    "number": "4111111111111111",
+    "hunch": "Visa de teste clássico (passa no Luhn)",
+    "httpStatus": 200,
+    "response": {
+      "object": "payment",
+      "id": "pay_dvf9ltds5ifjlmap",
+      "dateCreated": "2026-07-14",
+      "customer": "cus_000008394954",
+      "checkoutSession": null,
+      "paymentLink": null,
+      "value": 100,
+      "netValue": 96.52,
+      "originalValue": null,
+      "interestValue": null,
+      "description": "probe 1111",
+      "billingType": "CREDIT_CARD",
+      "confirmedDate": "2026-07-14",
+      "creditCard": {
+        "creditCardNumber": "1111",
+        "creditCardBrand": "VISA",
+        "creditCardToken": "595eb186-9799-4c9b-9aaf-80e41937fb8c"
+      },
+      "pixTransaction": null,
+      "status": "CONFIRMED",
+      "dueDate": "2026-07-15",
+      "originalDueDate": "2026-07-15",
+      "paymentDate": null,
+      "clientPaymentDate": "2026-07-14",
+      "installmentNumber": null,
+      "invoiceUrl": "https://sandbox.asaas.com/i/dvf9ltds5ifjlmap",
+      "invoiceNumber": "15929934",
+      "externalReference": null,
+      "deleted": false,
+      "anticipated": false,
+      "anticipable": false,
+      "creditDate": "2026-08-17",
+      "estimatedCreditDate": "2026-08-17",
+      "transactionReceiptUrl": "https://sandbox.asaas.com/comprovantes/3604658942674215",
+      "nossoNumero": null,
+      "bankSlipUrl": null,
+      "lastInvoiceViewedDate": null,
+      "lastBankSlipViewedDate": null,
+      "discount": {
+        "value": 0,
+        "limitDate": null,
+        "dueDateLimitDays": 0,
+        "type": "FIXED"
+      },
+      "fine": {
+        "value": 0,
+        "type": "FIXED"
+      },
+      "interest": {
+        "value": 0,
+        "type": "PERCENTAGE"
+      },
+      "postalService": false,
+      "escrow": null,
+      "refunds": null
+    }
+  }
+]

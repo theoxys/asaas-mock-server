@@ -15,6 +15,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { eq, sql } from 'drizzle-orm'
 import { creditCards, financialTransactions } from '../../src/db/schema/index.ts'
+import { CARD_ERRORS } from '../../src/domain/credit-card.ts'
 import { chargebackHandlers } from '../../src/modules/chargebacks/handlers.ts'
 import { creditCardHandlers } from '../../src/modules/credit-cards/handlers.ts'
 import { createHarness, type Harness } from '../helpers/harness.ts'
@@ -131,7 +132,12 @@ describe('Tokenização', () => {
     expect(row!.simulatedOutcome).toBe('DECLINE')
   })
 
-  it('número que falha no Luhn → 400 invalid_creditCard', async () => {
+  /**
+   * O Asaas NÃO valida Luhn — capturado do sandbox (tools/probe-cards.ts). Este
+   * teste afirmava o contrário e o mock recusava: um cartão que passa em produção
+   * quebrava aqui. É a direção perigosa do erro, e por isso vira teste.
+   */
+  it('número que falha no Luhn TOKENIZA — o Asaas aceita dígito verificador errado', async () => {
     const cus = await customer()
     const res = await h.api.call('credit-card-tokenization', {
       body: {
@@ -142,8 +148,23 @@ describe('Tokenização', () => {
       },
     })
 
+    expect(res.status).toBe(200)
+    expect(await h.app.db.select().from(creditCards)).toHaveLength(1)
+  })
+
+  it('número curto demais → 400 invalid_creditCard, com a frase do Asaas', async () => {
+    const cus = await customer()
+    const res = await h.api.call('credit-card-tokenization', {
+      body: {
+        customer: cus,
+        creditCard: card('411111111111'),
+        creditCardHolderInfo: holderInfo,
+        remoteIp: '116.213.42.53',
+      },
+    })
+
     expect(res.status).toBe(400)
-    expect(res.body.errors[0].code).toBe('invalid_creditCard')
+    expect(res.body.errors[0]).toEqual(CARD_ERRORS.INVALID_NUMBER)
     expect(await h.app.db.select().from(creditCards)).toHaveLength(0)
   })
 })
@@ -301,8 +322,12 @@ describe('Recusa — 400 e a cobrança não existe', () => {
       })
 
       expect(res.status).toBe(400)
-      expect(res.body.errors[0].code).toBe('invalid_creditCard')
-      // Mensagem GENÉRICA: o Asaas não diz o motivo da recusa, por segurança.
+      // O código é `invalid_action`, NÃO `invalid_creditCard` — capturado do
+      // sandbox. Antes disto o mock devolvia o código errado, e um cliente que
+      // ramifica por `code` se comportava diferente aqui e lá.
+      expect(res.body.errors[0]).toEqual(CARD_ERRORS.DECLINE)
+      // Mensagem GENÉRICA: o Asaas não diz o motivo da recusa, e não há campo de
+      // razão no corpo. Inventar um ensinaria o cliente a tratar ficção.
       expect(res.body.errors[0].description).not.toContain('limite')
 
       // A cobrança NÃO foi criada — não é uma cobrança "recusada".
@@ -508,7 +533,8 @@ describe('Validações', () => {
     expect(res.body.errors[0].code).toBe('invalid_remoteIp')
   })
 
-  it('número que falha no Luhn → 400 invalid_creditCard', async () => {
+  /** Ver a explicação no bloco de tokenização: o Asaas não valida Luhn. */
+  it('número que falha no Luhn é COBRADO — o Asaas não valida Luhn', async () => {
     const cus = await customer()
     const res = await h.api.call('create-new-payment-with-credit-card', {
       body: {
@@ -522,10 +548,50 @@ describe('Validações', () => {
       },
     })
 
+    expect(res.status).toBe(200)
+    expect(res.body.status).toBe('CONFIRMED')
+  })
+
+  it('cartão EXPIRADO → 400, com a frase do Asaas', async () => {
+    const cus = await customer()
+    const res = await h.api.call('create-new-payment-with-credit-card', {
+      body: {
+        customer: cus,
+        billingType: 'CREDIT_CARD',
+        value: 100,
+        dueDate: '2026-01-10',
+        creditCard: { ...card(APPROVES), expiryMonth: '05', expiryYear: '2020' },
+        creditCardHolderInfo: holderInfo,
+        remoteIp: '116.213.42.53',
+      },
+    })
+
     expect(res.status).toBe(400)
-    expect(res.body.errors[0].code).toBe('invalid_creditCard')
+    expect(res.body.errors[0]).toEqual(CARD_ERRORS.EXPIRED)
     const list = await h.api.call('list-payments')
     expect(list.body.totalCount).toBe(0)
+  })
+
+  /**
+   * O cartão de SIMULAÇÃO: não existe no Asaas (lá ele aprovaria), e existe aqui
+   * para que dê para exercitar o tratamento de erro trocando um número.
+   */
+  it('4000000000000069 força "cartão expirado" mesmo com validade no futuro', async () => {
+    const cus = await customer()
+    const res = await h.api.call('create-new-payment-with-credit-card', {
+      body: {
+        customer: cus,
+        billingType: 'CREDIT_CARD',
+        value: 100,
+        dueDate: '2026-01-10',
+        creditCard: card('4000000000000069'), // validade 12/2030, e ainda assim expira
+        creditCardHolderInfo: holderInfo,
+        remoteIp: '116.213.42.53',
+      },
+    })
+
+    expect(res.status).toBe(400)
+    expect(res.body.errors[0]).toEqual(CARD_ERRORS.EXPIRED)
   })
 
   it('15x no Diners (máximo 12) → 400 invalid_installmentCount', async () => {

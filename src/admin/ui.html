@@ -421,6 +421,11 @@
     </div>
 
   </div>
+
+  <section class="card" id="cards" style="margin-top: var(--pad-md)">
+    <h2>Cartões de teste</h2>
+    <div id="cards-body"><div class="empty">carregando…</div></div>
+  </section>
 </div>
 
 <script type="module">
@@ -686,6 +691,76 @@ $('#new-sub').onsubmit = async (ev) => {
   }
 }
 
+// ── cartões de teste ────────────────────────────────────────────────────────
+/**
+ * A tabela vem do SERVIDOR (`/_admin/test-cards`), que a lê do domínio — a mesma
+ * constante que decide o desfecho de verdade. Não há cópia aqui: uma tela que
+ * mantivesse a sua própria lista acabaria anunciando um cartão que o servidor
+ * não honra, com botão de copiar e tudo.
+ */
+async function loadCards() {
+  const { cards, triggers } = await admin('/test-cards')
+
+  const row = (c) => `
+    <tr>
+      <td>${fmtPan(c.number)} ${copyBtn(c.number)}</td>
+      <td>${c.brand}</td>
+      <td>
+        <span class="st ${c.outcome === 'APPROVE' ? 'st-RECEIVED' : 'st-OVERDUE'}">
+          ${esc(c.label)}
+        </span>
+      </td>
+      <td>${c.error ? `<code>${esc(c.error.code)}</code>` : '—'}</td>
+      <td style="white-space:normal">${c.error ? esc(c.error.description) : '—'}</td>
+      <td>${
+        c.real
+          ? '<span class="tag main">Asaas real</span>'
+          : '<span class="tag" title="No Asaas de verdade este número seria APROVADO. Só existe aqui.">simulação</span>'
+      }</td>
+    </tr>`
+
+  $('#cards-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Número</th><th>Bandeira</th><th>Resultado</th>
+        <th>code</th><th>Mensagem</th><th>Fidelidade</th>
+      </tr></thead>
+      <tbody>${cards.map(row).join('')}</tbody>
+    </table>
+
+    <div class="body" style="border-top:1px solid var(--border)">
+      <p class="hint" style="margin:0 0 var(--pad-sm)">
+        <b>Qualquer número bem-formado aprova</b> — o Asaas não valida Luhn, e nós
+        também não (foi capturado do sandbox: <code>4111111111111112</code> aprova lá).
+        Os erros abaixo <b>não se disparam por número</b>: são propriedades de outros
+        campos, e é assim que o Asaas os produz.
+      </p>
+      <table>
+        <thead><tr><th>Erro</th><th>Como disparar</th><th>Mensagem</th></tr></thead>
+        <tbody>${triggers
+          .map(
+            (t) => `<tr>
+              <td>${esc(t.label)}</td>
+              <td><code>${esc(t.how)}</code></td>
+              <td style="white-space:normal">${esc(t.error.description)}</td>
+            </tr>`,
+          )
+          .join('')}</tbody>
+      </table>
+    </div>`
+
+  for (const b of $('#cards').querySelectorAll('[data-copy]')) {
+    b.onclick = () => {
+      navigator.clipboard.writeText(b.dataset.copy)
+      b.textContent = 'copiado'
+      setTimeout(() => (b.textContent = 'copiar'), 1200)
+    }
+  }
+}
+
+/** `4444444444444444` → `4444 4444 4444 4444`. Só para a leitura humana. */
+const fmtPan = (n) => esc(n).replace(/(.{4})/g, '$1 ').trim()
+
 // ── util ────────────────────────────────────────────────────────────────────
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"]/g, (c) =>
@@ -709,6 +784,7 @@ $('#tick').onclick = async () => {
 
 await loadClock()
 await refresh()
+await loadCards()
 </script>
 </body>
 </html>

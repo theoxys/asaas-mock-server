@@ -24,6 +24,7 @@ import { badRequest, invalid, notFound } from '../../core/errors.ts'
 import type { DB } from '../../db/client.ts'
 import { creditCards, customers, payments } from '../../db/schema/index.ts'
 import {
+  CARD_ERRORS,
   CreditCardError,
   inspectCard,
   type CardInfo,
@@ -38,14 +39,15 @@ import { createPayment, parseCreateBody } from '../payments/service.ts'
 export type CreditCardRow = typeof creditCards.$inferSelect
 
 /**
- * A recusa. Genérica DE PROPÓSITO — ver o comentário do topo.
- * É a mensagem que o Asaas devolve, e o código é `invalid_creditCard`.
+ * A recusa. Genérica DE PROPÓSITO: o Asaas não diz o motivo — não há campo de
+ * razão no corpo, e os dois cartões de recusa devolvem a MESMA frase. Um mock que
+ * inventasse "saldo insuficiente" ensinaria o cliente a tratar um erro que a
+ * produção nunca manda.
+ *
+ * Código e frase capturados do sandbox (tools/probe-cards.ts). Antes daqui isto
+ * era `invalid_creditCard` com outro texto — inventado, e errado.
  */
-export const DECLINED = badRequest(
-  'invalid_creditCard',
-  'Transação não autorizada. Verifique os dados do cartão informado e tente novamente ' +
-    'ou entre em contato com a operadora do cartão.',
-)
+export const DECLINED = badRequest(CARD_ERRORS.DECLINE.code, CARD_ERRORS.DECLINE.description)
 
 /** Traduz o erro puro do domínio para o formato de erro do Asaas. */
 function toApiError(err: unknown): never {
@@ -53,9 +55,9 @@ function toApiError(err: unknown): never {
   throw err
 }
 
-export function inspect(card: CardInput): CardInfo {
+export function inspect(card: CardInput, now: Date): CardInfo {
   try {
-    return inspectCard(card)
+    return inspectCard(card, now)
   } catch (err) {
     return toApiError(err)
   }
@@ -138,13 +140,18 @@ export async function resolveCard(
     )
   }
 
-  const info = inspect({
-    number: String(card.number ?? ''),
-    holderName: card.holderName,
-    expiryMonth: card.expiryMonth === undefined ? undefined : String(card.expiryMonth),
-    expiryYear: card.expiryYear === undefined ? undefined : String(card.expiryYear),
-    ccv: card.ccv === undefined ? undefined : String(card.ccv),
-  })
+  // O `now` do RELÓGIO, não o do sistema: avançar 5 anos no painel tem que expirar
+  // um cartão 05/2027, senão a viagem no tempo mente sobre o cartão.
+  const info = inspect(
+    {
+      number: String(card.number ?? ''),
+      holderName: card.holderName,
+      expiryMonth: card.expiryMonth === undefined ? undefined : String(card.expiryMonth),
+      expiryYear: card.expiryYear === undefined ? undefined : String(card.expiryYear),
+      ccv: card.ccv === undefined ? undefined : String(card.ccv),
+    },
+    ctx.clock.now(),
+  )
 
   return {
     info,

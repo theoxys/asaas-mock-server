@@ -1,7 +1,7 @@
 /**
- * Cartão de crédito: Luhn, bandeira e os cartões de teste do sandbox. PURO.
+ * Cartão de crédito: bandeira, validação e os cartões de teste. PURO.
  *
- * Não toca banco, relógio nem HTTP — recebe o número e devolve DADOS.
+ * Não toca banco, relógio nem HTTP — recebe o número (e o `now`) e devolve DADOS.
  *
  * O que este arquivo garante, e que é a razão de ele existir:
  *
@@ -9,18 +9,31 @@
  *      o desfecho simulado — nunca o número. Quem chama não tem como persistir o
  *      PAN por descuido, porque nunca o recebe de volta.
  *
- *   2. Os cartões de teste são DADOS (`TEST_CARDS`), não `if`s espalhados pelo
- *      handler. A tabela é injetável, então uma integração que precise de outro
- *      PAN de recusa muda a tabela, não o código.
+ *   2. Os cartões de teste e as mensagens de erro são DADOS, não `if`s espalhados
+ *      pelo handler. O painel serve a MESMA tabela que o motor consulta — não há
+ *      como a tela documentar um cartão que o servidor não honra.
  *
- * A tabela do sandbox do Asaas:
- *   4444 4444 4444 4444  → aprova
- *   5184 0197 4037 3151  → recusa
- *   4916 5613 5824 0741  → recusa
+ * ─────────────────────────────────────────────────────────────────────────────
+ * TUDO ABAIXO FOI CAPTURADO DO SANDBOX REAL (tools/probe-cards.ts), não deduzido.
+ * A captura derrubou quatro coisas que este arquivo afirmava:
  *
- * Detalhe que morde: `4444444444444444` NÃO passa no algoritmo de Luhn. Por isso
- * a tabela de teste é consultada ANTES da validação — um cartão de teste é
- * válido por decreto. Qualquer outro número precisa passar no Luhn.
+ *   • A recusa NÃO é `invalid_creditCard`. É **`invalid_action`**, com outra
+ *     frase. Um cliente que ramifica por `code` se comportava diferente contra o
+ *     mock e contra o Asaas — que é exatamente o bug que este projeto existe para
+ *     não ter.
+ *
+ *   • O Asaas NÃO valida Luhn. `4111111111111112` (dígito verificador errado)
+ *     é APROVADO lá. Nós recusávamos: um cartão que funcionava em produção
+ *     quebrava no teste local. Luhn continua exportado — serve para o painel
+ *     sugerir números plausíveis — mas NÃO recusa mais nada.
+ *
+ *   • O CVV de 1 dígito é ACEITO. Só o vazio é recusado.
+ *
+ *   • Cartão expirado é RECUSADO — e nós nem olhávamos a data.
+ *
+ * Se você mudar qualquer mensagem daqui, rode `bun tools/probe-cards.ts` contra o
+ * sandbox e prove que o Asaas mudou primeiro.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 /**
@@ -43,8 +56,28 @@ export type CardBrand =
   | 'JCB'
   | 'UNKNOWN'
 
-/** O que a "adquirente" simulada vai responder quando este cartão for usado. */
-export type SimulatedOutcome = 'APPROVE' | 'DECLINE'
+/**
+ * O desfecho simulado de um cartão.
+ *
+ * `APPROVE` e `DECLINE` são desfechos de AUTORIZAÇÃO: o cartão é válido, entra no
+ * cofre, vira token — e só na hora de cobrar é que a "adquirente" responde. Os
+ * demais são de VALIDAÇÃO: o Asaas recusa a requisição na porta, e nenhum token
+ * nasce.
+ *
+ * A distinção não é acadêmica: um cartão `DECLINE` tokenizado continua recusando
+ * quando cobrado pelo token, e é assim que o Asaas se comporta.
+ */
+export type SimulatedOutcome =
+  | 'APPROVE'
+  | 'DECLINE'
+  | 'EXPIRED'
+  | 'INVALID_NUMBER'
+  | 'INVALID_MONTH'
+  | 'MISSING_CVV'
+  | 'MISSING_HOLDER'
+
+/** Os desfechos que sobrevivem à validação e viram token. */
+export type AuthorizationOutcome = Extract<SimulatedOutcome, 'APPROVE' | 'DECLINE'>
 
 /** Erro de domínio. Puro — a borda traduz para o formato de erro do Asaas. */
 export class CreditCardError extends Error {
@@ -57,23 +90,110 @@ export class CreditCardError extends Error {
   }
 }
 
-/** A tabela de cartões de teste do sandbox. É DADO, e é injetável. */
-export type TestCardTable = Readonly<Record<string, SimulatedOutcome>>
-
-export const TEST_CARDS: TestCardTable = {
-  '4444444444444444': 'APPROVE',
-  '5184019740373151': 'DECLINE',
-  '4916561358240741': 'DECLINE',
+/**
+ * As mensagens do Asaas, LETRA A LETRA. Inclusive o "invalido" sem acento em
+ * INVALID_MONTH — o typo é deles, e reproduzi-lo é o ponto: um cliente que
+ * compara a string encontra a mesma string aqui e lá.
+ */
+export const CARD_ERRORS: Readonly<
+  Record<Exclude<SimulatedOutcome, 'APPROVE'>, { code: string; description: string }>
+> = {
+  DECLINE: {
+    code: 'invalid_action',
+    description:
+      'Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente.',
+  },
+  INVALID_NUMBER: {
+    code: 'invalid_creditCard',
+    description:
+      'O número do cartão é inválido. Verifique se todos os números foram informados corretamente.',
+  },
+  EXPIRED: {
+    code: 'invalid_creditCard',
+    description: 'O cartão informado está expirado.',
+  },
+  INVALID_MONTH: {
+    code: 'invalid_creditCard',
+    description: 'O mês de vencimento do cartão é invalido.',
+  },
+  MISSING_CVV: {
+    code: 'invalid_creditCard',
+    description: 'Informe o código de segurança do seu cartão.',
+  },
+  MISSING_HOLDER: {
+    code: 'invalid_creditCard',
+    description: 'Informe o nome do portador.',
+  },
 }
+
+const errorFor = (outcome: Exclude<SimulatedOutcome, 'APPROVE'>) => {
+  const e = CARD_ERRORS[outcome]
+  return new CreditCardError(e.code, e.description)
+}
+
+/** Uma linha da tabela de cartões de teste. É o que o painel exibe. */
+export interface TestCard {
+  number: string
+  outcome: SimulatedOutcome
+  /** O que este cartão faz, em português, para a tela. */
+  label: string
+  /**
+   * `true` quando o SANDBOX REAL do Asaas faz a mesma coisa com este número.
+   *
+   * `false` é uma extensão nossa: no Asaas de verdade o número seria APROVADO.
+   * A distinção precisa aparecer no painel, senão alguém escreve um teste contra
+   * um comportamento que só existe aqui e descobre em produção.
+   */
+  real: boolean
+}
+
+/**
+ * A tabela. É DADO, e é injetável.
+ *
+ * Os quatro primeiros foram verificados contra o sandbox. Os três seguintes são
+ * SIMULAÇÃO: números da indústria (os "canônicos" que todo dev reconhece) que no
+ * Asaas real aprovariam — aqui forçam um erro, para que dê para exercitar o
+ * tratamento de erro trocando um número em vez de forjar um payload.
+ *
+ * Por que só estes três, e não um cartão por erro? Porque `MISSING_CVV` e
+ * `MISSING_HOLDER` são propriedades de OUTROS campos. Um número que devolvesse
+ * "Informe o nome do portador" quando o nome FOI informado seria uma mensagem
+ * mentirosa. Esses erros se disparam quebrando o campo — que é como o Asaas os
+ * produz. `TRIGGERS` abaixo diz como.
+ */
+export type TestCardTable = readonly TestCard[]
+
+export const TEST_CARDS: TestCardTable = [
+  { number: '5162306219378829', outcome: 'APPROVE', label: 'Aprova', real: true },
+  { number: '4444444444444444', outcome: 'APPROVE', label: 'Aprova', real: true },
+  { number: '5184019740373151', outcome: 'DECLINE', label: 'Recusa do emissor', real: true },
+  { number: '4916561358240741', outcome: 'DECLINE', label: 'Recusa do emissor', real: true },
+
+  { number: '4000000000000002', outcome: 'DECLINE', label: 'Recusa do emissor', real: false },
+  { number: '4000000000000069', outcome: 'EXPIRED', label: 'Cartão expirado', real: false },
+  { number: '4000000000000101', outcome: 'INVALID_NUMBER', label: 'Número inválido', real: false },
+]
+
+/**
+ * Os erros que NÃO se disparam por número, e o campo que os produz. O painel
+ * mostra isto ao lado da tabela: sem ele, três dos seis erros do Asaas ficariam
+ * sem forma de exercitar.
+ */
+export const TRIGGERS: ReadonlyArray<{
+  outcome: Exclude<SimulatedOutcome, 'APPROVE' | 'DECLINE'>
+  label: string
+  how: string
+}> = [
+  { outcome: 'EXPIRED', label: 'Cartão expirado', how: 'expiryYear no passado (ex.: 2020)' },
+  { outcome: 'INVALID_MONTH', label: 'Mês inválido', how: 'expiryMonth = 13' },
+  { outcome: 'MISSING_CVV', label: 'CVV ausente', how: 'ccv = "" (1 dígito é aceito!)' },
+  { outcome: 'MISSING_HOLDER', label: 'Titular ausente', how: 'holderName = ""' },
+  { outcome: 'INVALID_NUMBER', label: 'Número inválido', how: 'number com menos de 13 dígitos' },
+]
 
 /**
  * Prefixos por bandeira. O match é por PREFIXO MAIS LONGO — `6011` (Discover)
  * ganha de `6` (Elo).
- *
- * TODO(regra): as faixas reais de BIN são bem mais granulares (Elo tem ~40
- * faixas, Mastercard usa 51–55 + 2221–2720, JCB usa 3528–3589). Aqui usamos os
- * prefixos que a documentação do Asaas cita nos exemplos. Basta um número de
- * teste divergir para valer a pena refinar — e a mudança é só esta tabela.
  */
 export interface BrandRule {
   brand: CardBrand
@@ -96,8 +216,10 @@ export function normalizeCardNumber(raw: string): string {
 }
 
 /**
- * O algoritmo de Luhn (mod 10). Dobra um dígito sim, um não, da direita para a
- * esquerda; soma; o total tem que fechar em múltiplo de 10.
+ * O algoritmo de Luhn (mod 10).
+ *
+ * ATENÇÃO: **o Asaas não usa isto para recusar** — foi capturado. Continua aqui
+ * porque é útil para gerar números plausíveis, não para julgar os que chegam.
  */
 export function luhn(number: string): boolean {
   if (!/^\d+$/.test(number)) return false
@@ -135,14 +257,15 @@ export function detectBrand(number: string, rules: readonly BrandRule[] = BRAND_
 }
 
 /**
- * O desfecho simulado. `null` quando o número não está na tabela de teste — o
- * chamador decide o default (é APPROVE: um cartão válido qualquer aprova).
+ * O desfecho simulado. `null` quando o número não está na tabela — e aí o cartão
+ * segue o caminho normal: qualquer número bem-formado APROVA, como no Asaas.
  */
 export function outcomeFor(
   number: string,
   table: TestCardTable = TEST_CARDS,
 ): SimulatedOutcome | null {
-  return table[normalizeCardNumber(number)] ?? null
+  const n = normalizeCardNumber(number)
+  return table.find((c) => c.number === n)?.outcome ?? null
 }
 
 /** Os dados crus do cartão, como chegam no body. */
@@ -154,51 +277,82 @@ export interface CardInput {
   ccv?: string
 }
 
-/**
- * O cartão, sem o PAN. É EXATAMENTE isto que pode ser persistido ou serializado.
- */
+/** O cartão, sem o PAN. É EXATAMENTE isto que pode ser persistido ou serializado. */
 export interface CardInfo {
   last4: string
   brand: CardBrand
-  outcome: SimulatedOutcome
+  /** Só APPROVE ou DECLINE chegam aqui: o resto já virou exceção. */
+  outcome: AuthorizationOutcome
 }
 
-const invalidCard = (description: string) => new CreditCardError('invalid_creditCard', description)
+/**
+ * `true` se o cartão já venceu. O mês de vencimento é INCLUSIVO — um cartão
+ * 05/2026 vale até 31/05/2026. É a convenção da indústria, e errá-la recusaria
+ * cartões bons no último mês de vida deles.
+ */
+export function isExpired(month: number, year: number, now: Date): boolean {
+  const nowYear = now.getFullYear()
+  const nowMonth = now.getMonth() + 1
+  return year < nowYear || (year === nowYear && month < nowMonth)
+}
 
 /**
  * Valida o cartão e devolve o que dá para guardar. Lança `CreditCardError`.
  *
- * A ordem importa: a tabela de teste vem ANTES do Luhn (ver o comentário do topo).
+ * A tabela de teste é consultada ANTES da validação: um cartão de teste é válido
+ * por decreto (`4444444444444444` nem passa no Luhn, e o Asaas o aprova), e um
+ * cartão de simulação precisa poder forçar o seu erro mesmo estando bem-formado.
+ *
+ * `now` entra porque "expirado" é a única regra aqui que depende do tempo — e o
+ * relógio virtual precisa alcançá-la, senão avançar 5 anos não expiraria cartão
+ * nenhum.
  */
-export function inspectCard(card: CardInput, table: TestCardTable = TEST_CARDS): CardInfo {
+export function inspectCard(
+  card: CardInput,
+  now: Date,
+  table: TestCardTable = TEST_CARDS,
+): CardInfo {
   const number = normalizeCardNumber(card.number)
+  const simulated = outcomeFor(number, table)
 
-  if (!/^\d{13,19}$/.test(number)) {
-    throw invalidCard('O número do cartão de crédito informado é inválido.')
+  // Um cartão de simulação dispara o SEU erro e ignora o resto — é o que ele é.
+  if (simulated !== null && simulated !== 'APPROVE' && simulated !== 'DECLINE') {
+    throw errorFor(simulated)
   }
 
-  const known = outcomeFor(number, table)
-  if (known === null && !luhn(number)) {
-    throw invalidCard('O número do cartão de crédito informado é inválido.')
+  // Luhn NÃO entra aqui. Ver o cabeçalho: o Asaas aceita dígito verificador errado.
+  if (simulated === null && !/^\d{13,19}$/.test(number)) {
+    throw errorFor('INVALID_NUMBER')
   }
 
-  if (card.expiryMonth !== undefined) {
-    const month = Number(card.expiryMonth)
+  if (card.holderName !== undefined && String(card.holderName).trim() === '') {
+    throw errorFor('MISSING_HOLDER')
+  }
+
+  const month = card.expiryMonth === undefined ? undefined : Number(card.expiryMonth)
+  if (month !== undefined) {
     if (!/^\d{1,2}$/.test(String(card.expiryMonth)) || month < 1 || month > 12) {
-      throw invalidCard('O mês de expiração do cartão de crédito é inválido.')
+      throw errorFor('INVALID_MONTH')
     }
   }
-  if (card.expiryYear !== undefined && !/^\d{4}$/.test(String(card.expiryYear))) {
-    throw invalidCard('O ano de expiração do cartão de crédito é inválido.')
+
+  if (card.expiryYear !== undefined) {
+    if (!/^\d{4}$/.test(String(card.expiryYear))) throw errorFor('INVALID_MONTH')
+    if (month !== undefined && isExpired(month, Number(card.expiryYear), now)) {
+      throw errorFor('EXPIRED')
+    }
   }
-  if (card.ccv !== undefined && !/^\d{3,4}$/.test(String(card.ccv))) {
-    throw invalidCard('O código de segurança do cartão de crédito é inválido.')
+
+  // Só o CVV VAZIO é recusado. Um dígito passa — foi capturado, por mais estranho
+  // que pareça.
+  if (card.ccv !== undefined && String(card.ccv).trim() === '') {
+    throw errorFor('MISSING_CVV')
   }
 
   return {
     last4: number.slice(-4),
     brand: detectBrand(number),
-    // Um cartão válido que não está na tabela de teste aprova.
-    outcome: known ?? 'APPROVE',
+    // Um cartão bem-formado que não está na tabela APROVA.
+    outcome: simulated === 'DECLINE' ? 'DECLINE' : 'APPROVE',
   }
 }

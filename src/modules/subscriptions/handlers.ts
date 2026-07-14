@@ -156,7 +156,7 @@ async function resolveCreditCard(
 
   let info
   try {
-    info = inspectCard(card)
+    info = inspectCard(card, ctx.clock.now())
   } catch (err) {
     if (err instanceof CreditCardError) throw badRequest(err.code, err.description)
     throw err

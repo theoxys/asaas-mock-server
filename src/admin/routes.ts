@@ -13,6 +13,7 @@ import { VirtualClock } from '../core/clock.ts'
 import type { AppContext } from '../core/context.ts'
 import { badRequest } from '../core/errors.ts'
 import { accounts, apiKeys, webhookDeliveries, webhookEvents } from '../db/schema/index.ts'
+import { CARD_ERRORS, detectBrand, TEST_CARDS, TRIGGERS } from '../domain/credit-card.ts'
 import { OPERATION_COUNT, OPERATION_IDS } from '../generated/operations.ts'
 import type { Scheduler } from '../scheduler/scheduler.ts'
 
@@ -181,6 +182,28 @@ export function adminRoutes(ctx: AppContext, scheduler: Scheduler) {
       .get('/fees', () => ctx.config.fees)
 
       .get('/jobs', () => ({ order: scheduler.jobNames, paused: scheduler.paused }))
+
+      /**
+       * Os cartões de teste e os erros que cada um força.
+       *
+       * A tabela vem do DOMÍNIO, não de uma cópia — é a MESMA constante que o
+       * motor consulta para decidir o desfecho. Se a tela e o servidor pudessem
+       * discordar, a tela mentiria com botão de copiar e tudo.
+       *
+       * `real: false` marca as extensões nossas: números que o Asaas de verdade
+       * APROVARIA. Sem essa marca, alguém escreve um teste contra um comportamento
+       * que só existe aqui e descobre em produção.
+       */
+      .get('/test-cards', () => ({
+        cards: TEST_CARDS.map((c) => ({
+          ...c,
+          brand: detectBrand(c.number),
+          error: c.outcome === 'APPROVE' ? null : CARD_ERRORS[c.outcome],
+        })),
+        // Três dos seis erros do Asaas não se disparam por número — são
+        // propriedades de outros campos. Aqui vai como produzi-los.
+        triggers: TRIGGERS.map((t) => ({ ...t, error: CARD_ERRORS[t.outcome] })),
+      }))
 
       /**
        * Todas as contas do simulador, com SALDO e CHAVE DE API.

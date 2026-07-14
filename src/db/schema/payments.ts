@@ -194,9 +194,13 @@ export const creditCards = sqliteTable(
     expiryYear: text('expiry_year').notNull(),
 
     /**
-     * Derivado do PAN de teste na tokenização:
-     *   4444444444444444 → APPROVE
-     *   5184019740373151 / 4916561358240741 → DECLINE
+     * O desfecho da AUTORIZAÇÃO, decidido na tokenização e carregado pelo token —
+     * é o que faz um cartão recusado continuar recusando quando cobrado pelo
+     * token, como no Asaas.
+     *
+     * Só os desfechos de autorização chegam aqui. Os de validação (expirado, CVV
+     * ausente…) recusam a requisição na porta e nenhum token nasce.
+     * Ver `src/domain/credit-card.ts`.
      */
     simulatedOutcome: text('simulated_outcome', {
       enum: ['APPROVE', 'DECLINE'],
