@@ -11,6 +11,8 @@
  */
 import { useEffect, useState } from 'preact/hooks'
 import { admin } from './api.ts'
+import * as I from './icons.ts'
+import { Icon } from './components/Icon.tsx'
 import { Sidebar } from './components/Sidebar.tsx'
 import { Topbar } from './components/Topbar.tsx'
 import { Banner, Button, plural } from './components/ui.tsx'
@@ -106,7 +108,7 @@ export function App() {
 
         <div class="content">
           <div class="crumbs">
-            <span>⌂</span>
+            <Icon icon={I.HOME} size={15} />
             <span class="crumb-current">{TITLES[page] ?? page}</span>
           </div>
 
@@ -120,7 +122,7 @@ export function App() {
               para a aplicação que integra do outro lado também. */}
           {drift > 0 && (
             <Banner
-              icon="⏱"
+              icon={I.CLOCK}
               action={
                 <Button variant="primary" size="sm" onClick={() => void resetClock()}>
                   Voltar ao presente
@@ -136,7 +138,7 @@ export function App() {
           {blocked.length > 0 && page !== 'sim-webhooks' && (
             <Banner
               tone="danger"
-              icon="⇄"
+              icon={I.WEBHOOK}
               action={
                 <Button variant="danger" size="sm" onClick={() => setPage('sim-webhooks')}>
                   Ver fila

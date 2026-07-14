@@ -56,7 +56,7 @@ export function Webhooks({ store }: PageProps) {
 
   return (
     <div class="stack">
-      <Banner tone="primary" icon="ⓘ">
+      <Banner tone="primary">
         Esta tela é do simulador, mas os <b>botões chamam a API real do Asaas</b>{' '}
         (<code>removeBackoff</code>, <code>PUT /v3/webhooks</code>). Não há botão de
         descartar evento: no Asaas não existe, e uma mensagem envenenada só sai

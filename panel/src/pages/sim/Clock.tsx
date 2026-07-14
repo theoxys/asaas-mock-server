@@ -41,7 +41,7 @@ export function Clock({ store }: PageProps) {
 
   return (
     <div class="stack">
-      <Banner tone="primary" icon="ⓘ">
+      <Banner tone="primary">
         Nada nesta página existe na API do Asaas. O relógio é <b>global ao container</b>:
         mover o tempo aqui move o tempo para a aplicação que está integrando do outro
         lado — cobranças novas passam a nascer vencidas.

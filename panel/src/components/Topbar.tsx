@@ -9,6 +9,8 @@
  */
 import { useState } from 'preact/hooks'
 import type { Account } from '../api.ts'
+import * as I from '../icons.ts'
+import { Icon } from './Icon.tsx'
 import { useTheme } from '../theme.ts'
 import { money } from './ui.tsx'
 import './Topbar.css'
@@ -53,7 +55,7 @@ export function Topbar(props: {
       </div>
 
       <button class="refresh" onClick={props.onRefresh} disabled={props.refreshing}>
-        <span class={props.refreshing ? 'spin' : ''}>↻</span>
+        <Icon icon={I.REFRESH} size={16} class={props.refreshing ? 'spin' : ''} />
         {props.refreshing ? 'Atualizando' : 'Atualizado'}
       </button>
 
@@ -63,14 +65,14 @@ export function Topbar(props: {
         title={theme === 'dark' ? 'Usar o tema claro (o do Asaas)' : 'Usar o tema escuro'}
         aria-label="Alternar tema"
       >
-        {theme === 'dark' ? '☀' : '☾'}
+        <Icon icon={theme === 'dark' ? I.SUN : I.MOON} size={16} />
       </button>
 
       <div class="acct-picker">
         <button class="acct-trigger" onClick={() => setOpen(!open)}>
           <span class="acct-avatar">{initial}</span>
           <span class="acct-name">{selected?.name ?? 'Selecione'}</span>
-          <span class="acct-caret">⌄</span>
+          <Icon icon={I.CARET} size={16} class="acct-caret" />
         </button>
 
         {open && (

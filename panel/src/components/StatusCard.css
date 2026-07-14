@@ -65,3 +65,4 @@
 }
 .stat-links button:hover { background: var(--surface-soft); }
 .stat-links .grow { flex: 1; }
+.stat-links button svg { flex-shrink: 0; }

@@ -9,6 +9,8 @@
  */
 import type { ComponentChildren, JSX } from 'preact'
 import { useState } from 'preact/hooks'
+import * as I from '../icons.ts'
+import { Icon, type IconData } from './Icon.tsx'
 import './ui.css'
 
 // ── moeda e formatação ──────────────────────────────────────────────────────
@@ -118,6 +120,7 @@ export function Copy({ value, children }: { value: string; children?: ComponentC
           setTimeout(() => setCopied(false), 1200)
         }}
       >
+        <Icon icon={I.COPY} size={12} />
         {copied ? 'copiado' : 'copiar'}
       </button>
     </span>
@@ -126,15 +129,20 @@ export function Copy({ value, children }: { value: string; children?: ComponentC
 
 // ── Banner ──────────────────────────────────────────────────────────────────
 
+/** O ícone segue o TOM por padrão: aviso alerta, informação informa. */
+const BANNER_ICON = { warn: I.ALERT, danger: I.ALERT, primary: I.INFO }
+
 export function Banner(props: {
   tone?: 'warn' | 'danger' | 'primary'
-  icon?: string
+  /** Sobrescreve o ícone do tom — para quando a causa é mais específica que a gravidade. */
+  icon?: IconData
   children: ComponentChildren
   action?: ComponentChildren
 }) {
+  const tone = props.tone ?? 'warn'
   return (
-    <div class={`banner ${props.tone ?? 'warn'}`}>
-      <span class="banner-icon">{props.icon ?? '⚠'}</span>
+    <div class={`banner ${tone}`}>
+      <Icon icon={props.icon ?? BANNER_ICON[tone]} size={18} class="banner-icon" />
       <div class="banner-text">{props.children}</div>
       {props.action}
     </div>

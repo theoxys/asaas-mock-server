@@ -58,10 +58,7 @@
 }
 
 .nav-icon {
-  width: 24px;
   flex-shrink: 0;
-  text-align: center;
-  font-size: 16px;
   color: var(--text-medium);
 }
 .nav-item.active .nav-icon { color: var(--primary); }
@@ -108,15 +105,4 @@
   color: var(--text-soft);
 }
 
-.sim-hint {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-medium);
-  font-size: 9px;
-  cursor: help;
-}
+.sim-hint { color: var(--text-soft); cursor: help; flex-shrink: 0; }

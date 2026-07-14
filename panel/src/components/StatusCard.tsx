@@ -10,6 +10,8 @@
  * uma sobra de 0,3% deixaria uma fresta na barra que ninguém consegue explicar.
  */
 import type { GroupSummary, SummaryGroup } from '../api.ts'
+import * as I from '../icons.ts'
+import { Icon } from './Icon.tsx'
 import { money, plural, type Tone } from './ui.tsx'
 import './StatusCard.css'
 
@@ -67,14 +69,14 @@ export function StatusCard({ s, onDrill }: { s: GroupSummary; onDrill: () => voi
 
       <div class="stat-links">
         <button onClick={onDrill}>
-          <span>☺</span>
+          <Icon icon={I.CUSTOMER} size={14} />
           <span class="grow">{plural(s.customers, 'cliente', 'clientes')}</span>
-          <span>›</span>
+          <Icon icon={I.CHEVRON} size={14} />
         </button>
         <button onClick={onDrill}>
-          <span>▤</span>
+          <Icon icon={I.PAYMENT} size={14} />
           <span class="grow">{plural(s.count, 'cobrança', 'cobranças')}</span>
-          <span>›</span>
+          <Icon icon={I.CHEVRON} size={14} />
         </button>
       </div>
     </div>

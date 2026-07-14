@@ -9,36 +9,38 @@
  * Os itens sem tela aparecem DESABILITADOS em vez de sumirem. Ver "Antecipações"
  * apagado responde "isso ainda não tem aqui"; não ver nada faz procurar.
  */
+import * as I from '../icons.ts'
+import { Icon, type IconData } from './Icon.tsx'
 import { MockLogo } from './MockLogo.tsx'
 import './Sidebar.css'
 
 export interface NavItem {
   id: string
   label: string
-  icon: string
+  icon: IconData
   /** Sem tela ainda. Fica visível e apagado — some seria pior. */
   disabled?: boolean
 }
 
 /** As telas do Asaas. A ordem é a do painel real. */
 export const ASAAS_NAV: NavItem[] = [
-  { id: 'home', label: 'Início', icon: '⌂' },
-  { id: 'customers', label: 'Meus Clientes', icon: '☺\uFE0E' },
-  { id: 'payments', label: 'Cobranças', icon: '▤' },
-  { id: 'physical', label: 'Vendas físicas', icon: '▭', disabled: true },
-  { id: 'pix', label: 'Pix', icon: '⌁', disabled: true },
-  { id: 'statement', label: 'Extrato da Conta', icon: '≡' },
-  { id: 'anticipations', label: 'Antecipações', icon: '↟', disabled: true },
-  { id: 'dunning', label: 'Negativação', icon: '⚑\uFE0E', disabled: true },
-  { id: 'splits', label: 'Split de pagamentos', icon: '⑃' },
-  { id: 'subaccounts', label: 'Subcontas', icon: '⚯' },
+  { id: 'home', label: 'Início', icon: I.HOME },
+  { id: 'customers', label: 'Meus Clientes', icon: I.CUSTOMER },
+  { id: 'payments', label: 'Cobranças', icon: I.PAYMENT },
+  { id: 'physical', label: 'Vendas físicas', icon: I.STORE, disabled: true },
+  { id: 'pix', label: 'Pix', icon: I.PIX, disabled: true },
+  { id: 'statement', label: 'Extrato da Conta', icon: I.STATEMENT },
+  { id: 'anticipations', label: 'Antecipações', icon: I.ANTICIPATION, disabled: true },
+  { id: 'dunning', label: 'Negativação', icon: I.ALERT, disabled: true },
+  { id: 'splits', label: 'Split de pagamentos', icon: I.SPLIT },
+  { id: 'subaccounts', label: 'Subcontas', icon: I.SUBACCOUNT },
 ]
 
 /** O que NÃO existe no Asaas. É por isso que fica num bloco à parte. */
 export const SIM_NAV: NavItem[] = [
-  { id: 'sim-clock', label: 'Relógio virtual', icon: '⏱\uFE0E' },
-  { id: 'sim-webhooks', label: 'Fila de webhooks', icon: '⇄' },
-  { id: 'sim-cards', label: 'Cartões de teste', icon: '▯' },
+  { id: 'sim-clock', label: 'Relógio virtual', icon: I.CLOCK },
+  { id: 'sim-webhooks', label: 'Fila de webhooks', icon: I.WEBHOOK },
+  { id: 'sim-cards', label: 'Cartões de teste', icon: I.CARD },
 ]
 
 export function Sidebar(props: {
@@ -56,7 +58,7 @@ export function Sidebar(props: {
       title={i.disabled ? 'Ainda não implementado no simulador' : undefined}
       onClick={() => props.onNavigate(i.id)}
     >
-      <span class="nav-icon">{i.icon}</span>
+      <Icon icon={i.icon} size={20} class="nav-icon" />
       <span class="nav-label">{i.label}</span>
       {badge ? <span class="nav-badge">{badge}</span> : null}
     </button>
@@ -76,9 +78,12 @@ export function Sidebar(props: {
       <div class="sim-section">
         <div class="sim-label">
           Simulador
-          <span class="sim-hint" title="Nada aqui existe na API do Asaas. São controles do mock.">
-            ?
-          </span>
+          <Icon
+            icon={I.HELP}
+            size={13}
+            class="sim-hint"
+            title="Nada aqui existe na API do Asaas. São controles do mock."
+          />
         </div>
         <nav>
           {SIM_NAV.map((i) => item(i, i.id === 'sim-webhooks' ? props.webhookAlerts : 0))}

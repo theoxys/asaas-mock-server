@@ -94,7 +94,7 @@ export function TestCards() {
 
   return (
     <div class="stack">
-      <Banner tone="primary" icon="ⓘ">
+      <Banner tone="primary">
         <b>Qualquer número bem-formado aprova</b> — o Asaas não valida Luhn, e nós também
         não. Os números abaixo forçam desfechos específicos, para você conseguir tratar
         cada erro no seu código.

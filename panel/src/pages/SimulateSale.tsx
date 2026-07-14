@@ -11,6 +11,8 @@
  */
 import { useState } from 'preact/hooks'
 import { v3 } from '../api.ts'
+import * as I from '../icons.ts'
+import { Icon } from '../components/Icon.tsx'
 import { Badge, Button, money } from '../components/ui.tsx'
 import type { Store } from '../store.ts'
 import './SimulateSale.css'
@@ -85,7 +87,7 @@ export function SimulateSale({ store, onClose }: { store: Store; onClose: () => 
         <header>
           <h2>Simular Venda</h2>
           <button class="modal-x" onClick={onClose} aria-label="Fechar">
-            ×
+            <Icon icon={I.CLOSE} size={18} />
           </button>
         </header>
 
