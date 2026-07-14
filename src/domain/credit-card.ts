@@ -70,6 +70,7 @@ export type CardBrand =
 export type SimulatedOutcome =
   | 'APPROVE'
   | 'DECLINE'
+  | 'DECLINE_ON_CHARGE'
   | 'EXPIRED'
   | 'INVALID_NUMBER'
   | 'INVALID_MONTH'
@@ -77,7 +78,10 @@ export type SimulatedOutcome =
   | 'MISSING_HOLDER'
 
 /** Os desfechos que sobrevivem à validação e viram token. */
-export type AuthorizationOutcome = Extract<SimulatedOutcome, 'APPROVE' | 'DECLINE'>
+export type AuthorizationOutcome = Extract<
+  SimulatedOutcome,
+  'APPROVE' | 'DECLINE' | 'DECLINE_ON_CHARGE'
+>
 
 /** Erro de domínio. Puro — a borda traduz para o formato de erro do Asaas. */
 export class CreditCardError extends Error {
@@ -99,6 +103,13 @@ export const CARD_ERRORS: Readonly<
   Record<Exclude<SimulatedOutcome, 'APPROVE'>, { code: string; description: string }>
 > = {
   DECLINE: {
+    code: 'invalid_action',
+    description:
+      'Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente.',
+  },
+  // MESMO erro do DECLINE — o que muda é QUANDO ele acontece, não o que o cliente
+  // recebe. Ver o comentário de DECLINE_ON_CHARGE em TEST_CARDS.
+  DECLINE_ON_CHARGE: {
     code: 'invalid_action',
     description:
       'Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente.',
@@ -172,6 +183,27 @@ export const TEST_CARDS: TestCardTable = [
   { number: '4000000000000002', outcome: 'DECLINE', label: 'Recusa do emissor', real: false },
   { number: '4000000000000069', outcome: 'EXPIRED', label: 'Cartão expirado', real: false },
   { number: '4000000000000101', outcome: 'INVALID_NUMBER', label: 'Número inválido', real: false },
+
+  /**
+   * O cartão que TOKENIZA e só recusa DEPOIS — o único aqui que existe para tapar
+   * um buraco do sandbox, e não para reproduzi-lo.
+   *
+   * No Asaas real a tokenização AUTORIZA: um cartão que recusa nunca vira token.
+   * Consequência: lá, um cartão salvo SEMPRE aprova, e não há como testar o
+   * cenário que de fato quebra uma feature de "cartão memorizado" — o cartão do
+   * cliente, salvo meses atrás, falhando na renovação. É um cenário real (limite
+   * estourado, cartão cancelado) que o sandbox não sabe produzir.
+   *
+   * Este número produz. O erro entregue é o REAL (`invalid_action`, mesma frase):
+   * o que é nosso é o gatilho, não o payload — então o cliente aprende a tratar
+   * exatamente o que a produção vai mandar.
+   */
+  {
+    number: '4000000000000341',
+    outcome: 'DECLINE_ON_CHARGE',
+    label: 'Tokeniza, recusa ao cobrar',
+    real: false,
+  },
 ]
 
 /**
@@ -316,7 +348,14 @@ export function inspectCard(
   const simulated = outcomeFor(number, table)
 
   // Um cartão de simulação dispara o SEU erro e ignora o resto — é o que ele é.
-  if (simulated !== null && simulated !== 'APPROVE' && simulated !== 'DECLINE') {
+  // Os desfechos de AUTORIZAÇÃO não caem aqui: eles não recusam a requisição, eles
+  // sobrevivem e decidem na hora de cobrar.
+  if (
+    simulated !== null &&
+    simulated !== 'APPROVE' &&
+    simulated !== 'DECLINE' &&
+    simulated !== 'DECLINE_ON_CHARGE'
+  ) {
     throw errorFor(simulated)
   }
 
@@ -353,6 +392,18 @@ export function inspectCard(
     last4: number.slice(-4),
     brand: detectBrand(number),
     // Um cartão bem-formado que não está na tabela APROVA.
-    outcome: simulated === 'DECLINE' ? 'DECLINE' : 'APPROVE',
+    outcome:
+      simulated === 'DECLINE' || simulated === 'DECLINE_ON_CHARGE' ? simulated : 'APPROVE',
   }
 }
+
+/** Este desfecho recusa quando a cobrança é feita? (os dois DECLINE recusam) */
+export const declinesOnCharge = (o: AuthorizationOutcome): boolean => o !== 'APPROVE'
+
+/**
+ * Este desfecho recusa já na TOKENIZAÇÃO?
+ *
+ * É a única diferença entre `DECLINE` (o do Asaas real: nunca vira token) e
+ * `DECLINE_ON_CHARGE` (o nosso: vira token e recusa depois).
+ */
+export const declinesOnTokenize = (o: AuthorizationOutcome): boolean => o === 'DECLINE'

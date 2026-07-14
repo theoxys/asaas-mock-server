@@ -56,6 +56,45 @@ export interface RegisterResult {
  * cobrança de boleto). Quem exige o que é o handler — que é quem sabe se o body
  * é de cartão ou não.
  */
+/**
+ * Campos cuja OBRIGATORIEDADE INTERNA quem decide é o handler, não o schema.
+ *
+ * O `creditCard` da spec é um `anyOf` que exige os 5 campos. Um body como
+ * `{creditCardToken, creditCard: {ccv}}` não casa com nenhum ramo, e o validador
+ * responde **"Expected union value"** — uma string do TypeBox, que o Asaas jamais
+ * mandaria. O Asaas responde QUATRO erros, um por campo faltante, com as frases
+ * dele.
+ *
+ * Um erro que o cliente nunca verá em produção é pior que erro nenhum: ele ensina
+ * a tratar uma mensagem que não existe. Então relaxamos o schema aqui e deixamos
+ * o handler recusar — ele é quem sabe as frases certas (`assertCompleteCard`).
+ *
+ * O schema continua PODANDO campos desconhecidos; só deixa de exigir presença.
+ */
+const HANDLER_VALIDATED = new Set(['creditCard'])
+
+/** O mesmo objeto, com todas as propriedades opcionais. Sem `required`. */
+function relaxObject(schema: TSchema): TSchema {
+  const anyOf = (schema as { anyOf?: TSchema[] }).anyOf
+  // A união vem da spec (ex.: "cartão" | "cartão com token"). Ficamos com o ramo
+  // mais completo: é o superconjunto dos campos que o handler sabe ler.
+  const chosen = anyOf?.length
+    ? anyOf.reduce((a, b) =>
+        Object.keys((b as { properties?: object }).properties ?? {}).length >
+        Object.keys((a as { properties?: object }).properties ?? {}).length
+          ? b
+          : a,
+      )
+    : schema
+
+  const props = (chosen as { properties?: Record<string, TSchema> }).properties
+  if (!props) return schema
+
+  return Type.Object(
+    Object.fromEntries(Object.entries(props).map(([k, v]) => [k, Type.Optional(v)])),
+  )
+}
+
 function mergeVariantBodies(op: OperationMeta, variants: OperationMeta[]): TSchema | undefined {
   const base = op.body as (TSchema & { properties?: Record<string, TSchema> }) | undefined
   if (!base?.properties || op.bodyContentType !== 'application/json') return op.body
@@ -72,6 +111,13 @@ function mergeVariantBodies(op: OperationMeta, variants: OperationMeta[]): TSche
       properties[name] = Type.Optional(schema)
       merged = true
     }
+  }
+
+  for (const name of HANDLER_VALIDATED) {
+    const schema = properties[name]
+    if (!schema) continue
+    properties[name] = Type.Optional(relaxObject(schema))
+    merged = true
   }
 
   return merged ? Type.Object(properties) : op.body

@@ -1,0 +1,53 @@
+{
+  "tokenize": {
+    "status": 200,
+    "body": {
+      "creditCardNumber": "8829",
+      "creditCardBrand": "MASTERCARD",
+      "creditCardToken": "afbdb445-cee8-4d58-be3e-e179d754760a"
+    }
+  },
+  "payWithTokenOnly": {
+    "status": 200,
+    "creditCard": {
+      "creditCardNumber": "8829",
+      "creditCardBrand": "MASTERCARD",
+      "creditCardToken": "afbdb445-cee8-4d58-be3e-e179d754760a"
+    },
+    "status_": "CONFIRMED"
+  },
+  "payWithTokenAndCcv": {
+    "status": 400
+  },
+  "tokenCrossCustomer": {
+    "status": 400,
+    "body": [
+      {
+        "code": "invalid_creditCard",
+        "description": "CreditCardToken afbdb445-cee8-4d58-be3e-e179d754760a não encontrado."
+      }
+    ]
+  },
+  "tokenFromPayment": {
+    "token": true,
+    "reusable": 200
+  },
+  "badToken": {
+    "status": 400,
+    "errors": [
+      {
+        "code": "invalid_creditCard",
+        "description": "CreditCardToken nao-existe-este-token não encontrado."
+      }
+    ]
+  },
+  "tokenizeDeclined": {
+    "status": 400,
+    "errors": [
+      {
+        "code": "invalid_action",
+        "description": "Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente."
+      }
+    ]
+  }
+}

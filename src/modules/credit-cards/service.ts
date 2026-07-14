@@ -20,12 +20,14 @@
  */
 import { and, eq } from 'drizzle-orm'
 import type { AppContext, AuthContext } from '../../core/context.ts'
-import { badRequest, invalid, notFound } from '../../core/errors.ts'
+import { AsaasError, badRequest, invalid, notFound } from '../../core/errors.ts'
 import type { DB } from '../../db/client.ts'
 import { creditCards, customers, payments } from '../../db/schema/index.ts'
 import {
   CARD_ERRORS,
   CreditCardError,
+  declinesOnCharge,
+  declinesOnTokenize,
   inspectCard,
   type CardInfo,
   type CardInput,
@@ -99,26 +101,77 @@ export interface ResolvedCard {
 }
 
 /**
+ * Token não encontrado — ou encontrado, mas de OUTRO cliente. O Asaas não
+ * distingue os dois casos: para ele, um token que não é do cliente da cobrança
+ * simplesmente "não existe". Capturado (tools/probe-tokenization.ts).
+ *
+ * Note o código: `invalid_creditCard`, não `invalid_creditCardToken`. E a
+ * descrição CARREGA o token — nós devolvíamos uma frase genérica.
+ */
+const tokenNotFound = (token: string) =>
+  badRequest('invalid_creditCard', `CreditCardToken ${token} não encontrado.`)
+
+/**
+ * Os campos que o Asaas exige quando um objeto `creditCard` está PRESENTE — e
+ * exige mesmo que um `creditCardToken` venha junto. Capturado: mandar
+ * `{creditCardToken, creditCard: {ccv}}` devolve QUATRO erros, um por campo que
+ * faltou. É a pegadinha do "revalidar o CVV na recompra": o cliente acha que está
+ * reforçando a segurança e o Asaas rejeita a requisição inteira.
+ */
+const REQUIRED_CARD_FIELDS: ReadonlyArray<[key: string, description: string]> = [
+  ['holderName', 'Informe o nome do portador.'],
+  ['number', 'Informe o número do seu cartão.'],
+  ['expiryMonth', 'Informe o mês de vencimento do seu cartão.'],
+  ['expiryYear', 'Informe o ano de vencimento do seu cartão.'],
+  ['ccv', 'Informe o código de segurança do seu cartão.'],
+]
+
+/**
+ * Valida a PRESENÇA dos campos e devolve TODOS os erros de uma vez — o Asaas não
+ * para no primeiro. Um cliente que só olha `errors[0]` continua funcionando; um
+ * que lista os campos faltantes também.
+ */
+function assertCompleteCard(card: Record<string, any>): void {
+  const missing = REQUIRED_CARD_FIELDS.filter(
+    ([key]) => String(card[key] ?? '').trim() === '',
+  ).map(([, description]) => ({ code: 'invalid_creditCard', description }))
+
+  if (missing.length > 0) throw new AsaasError(400, missing)
+}
+
+/**
  * Resolve o cartão do body SEM gravar nada. Puro do ponto de vista do banco
  * (só lê) — é o que permite recusar um cartão sem deixar lixo persistido.
+ *
+ * `customerId` é o cliente DA COBRANÇA. Ele entra porque, no Asaas, **o token é
+ * preso ao cliente que o criou**: usar o token do cliente A para cobrar o B
+ * devolve "não encontrado". Sem esse parâmetro, o mock aceitava (e um app que
+ * embaralhasse tokens entre clientes só descobriria em produção).
  */
 export async function resolveCard(
   ctx: AppContext,
   db: DB,
   accountId: string,
   body: Record<string, any>,
+  customerId: string | null,
 ): Promise<ResolvedCard> {
   const token = body.creditCardToken ? String(body.creditCardToken) : null
+  const card = body.creditCard as Record<string, any> | undefined
 
-  if (token) {
+  // A PRESENÇA da chave `creditCard` manda, mesmo com token junto: o Asaas valida
+  // o objeto inteiro. `creditCard: {}` com um token válido é 400, não 200.
+  if (card !== undefined) assertCompleteCard(card)
+
+  if (token && card === undefined) {
     const [row] = await db
       .select()
       .from(creditCards)
       .where(and(eq(creditCards.creditCardToken, token), eq(creditCards.accountId, accountId)))
       .limit(1)
 
-    if (!row) {
-      throw invalid('creditCardToken', 'O token de cartão de crédito informado não existe.')
+    // O token existe, mas é de outro cliente → para o Asaas, não existe.
+    if (!row || (row.customerId !== null && row.customerId !== customerId)) {
+      throw tokenNotFound(token)
     }
 
     return {
@@ -132,7 +185,6 @@ export async function resolveCard(
     }
   }
 
-  const card = body.creditCard as Record<string, any> | undefined
   if (!card) {
     throw invalid(
       'creditCard',
@@ -189,7 +241,7 @@ export async function persistCard(
     holderName: raw.holderName,
     expiryMonth: raw.expiryMonth,
     expiryYear: raw.expiryYear,
-    simulatedOutcome: resolved.info.outcome,
+    simulatedOutcome: declinesOnCharge(resolved.info.outcome) ? 'DECLINE' : 'APPROVE',
     holderInfo: raw.holderInfo,
     dateCreated: ctx.clock.timestamp(),
   }
@@ -224,7 +276,19 @@ export async function tokenize(
   const customerId = String(body.customer ?? '')
   await assertOwnedCustomer(ctx, ctx.db, auth.accountId, customerId)
 
-  const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body)
+  const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body, customerId)
+
+  /**
+   * A TOKENIZAÇÃO AUTORIZA. Capturado: tokenizar `5184019740373151` (o cartão de
+   * recusa) devolve **400 invalid_action** no sandbox real — não um token.
+   *
+   * Faz sentido: o Asaas faz uma autorização de valor zero para provar que o
+   * cartão vive antes de guardá-lo. E muda a feature de "memorizar cartão": o
+   * cartão ruim é rejeitado NA HORA de salvar, e não na primeira cobrança, três
+   * semanas depois. Nós tokenizávamos qualquer coisa e só recusávamos ao cobrar —
+   * o app mostrava "cartão salvo!" e falhava na compra seguinte.
+   */
+  if (declinesOnTokenize(resolved.info.outcome)) throw DECLINED
 
   return ctx.db.transaction(async (tx) =>
     persistCard(ctx, tx as unknown as DB, auth.accountId, customerId, resolved),
@@ -270,14 +334,14 @@ export async function createPaymentWithCard(
   await assertOwnedCustomer(ctx, ctx.db, auth.accountId, input.customerId)
 
   // Resolve (e VALIDA) o cartão antes de gravar coisa alguma.
-  const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body)
+  const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body, input.customerId)
 
   // Parcelamento não chega aqui: `create-new-payment` desvia para o fluxo de
   // installments antes de nos chamar. Esta é a porta da cobrança à vista.
   assertInstallmentsAllowed(resolved.info.brand, 1)
 
   // A recusa acontece ANTES de qualquer escrita: a cobrança não chega a existir.
-  if (resolved.info.outcome === 'DECLINE') throw DECLINED
+  if (declinesOnCharge(resolved.info.outcome)) throw DECLINED
 
   const authorizeOnly = body.authorizeOnly === true
   const on = ctx.clock.today()
@@ -336,8 +400,8 @@ export async function payExistingWithCard(
     throw badRequest('invalid_action', 'Não é possível pagar uma cobrança removida.')
   }
 
-  const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body)
-  if (resolved.info.outcome === 'DECLINE') throw DECLINED
+  const resolved = await resolveCard(ctx, ctx.db, auth.accountId, body, payment.customerId)
+  if (declinesOnCharge(resolved.info.outcome)) throw DECLINED
 
   const on = ctx.clock.today()
 

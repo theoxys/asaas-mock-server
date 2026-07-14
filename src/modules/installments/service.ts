@@ -30,6 +30,7 @@ import * as ids from '../../domain/ids.ts'
 import { installmentDueDates, splitTotal } from '../../domain/installments.ts'
 import { brlToCents, cents, percentE4, sumCents, type Cents, type PercentE4 } from '../../domain/money.ts'
 import { distributeTotalFixedValue, type SplitSpec } from '../../domain/split.ts'
+import { declinesOnCharge } from '../../domain/credit-card.ts'
 import {
   assertInstallmentsAllowed,
   DECLINED,
@@ -366,7 +367,9 @@ export async function createInstallmentFlow(
 ): Promise<{ installment: InstallmentRow; payments: PaymentRow[] }> {
   // Resolve e VALIDA o cartão antes de gravar qualquer coisa: um cartão recusado
   // não pode deixar um parcelamento órfão para trás.
-  const card = hasCreditCard(body) ? await resolveCard(ctx, ctx.db, auth.accountId, body) : null
+  const card = hasCreditCard(body)
+    ? await resolveCard(ctx, ctx.db, auth.accountId, body, input.customerId)
+    : null
   if (card) {
     if (input.billingType !== 'CREDIT_CARD') {
       throw invalid(
@@ -376,7 +379,7 @@ export async function createInstallmentFlow(
     }
     requireRemoteIp(body)
     assertInstallmentsAllowed(card.info.brand, input.installmentCount)
-    if (card.info.outcome === 'DECLINE') throw DECLINED
+    if (declinesOnCharge(card.info.outcome)) throw DECLINED
   }
 
   return ctx.db.transaction(async (t) => {

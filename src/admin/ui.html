@@ -698,6 +698,18 @@ $('#new-sub').onsubmit = async (ev) => {
  * mantivesse a sua própria lista acabaria anunciando um cartão que o servidor
  * não honra, com botão de copiar e tudo.
  */
+/**
+ * `DECLINE_ON_CHARGE` merece cor própria (âmbar, a mesma de CONFIRMED): ele não
+ * recusa na porta, ele SALVA e recusa depois. Pintá-lo de vermelho junto com os
+ * outros esconderia justamente o que o torna útil.
+ */
+const chipFor = (outcome) =>
+  outcome === 'APPROVE'
+    ? 'st-RECEIVED'
+    : outcome === 'DECLINE_ON_CHARGE'
+      ? 'st-CONFIRMED'
+      : 'st-OVERDUE'
+
 async function loadCards() {
   const { cards, triggers } = await admin('/test-cards')
 
@@ -706,9 +718,7 @@ async function loadCards() {
       <td>${fmtPan(c.number)} ${copyBtn(c.number)}</td>
       <td>${c.brand}</td>
       <td>
-        <span class="st ${c.outcome === 'APPROVE' ? 'st-RECEIVED' : 'st-OVERDUE'}">
-          ${esc(c.label)}
-        </span>
+        <span class="st ${chipFor(c.outcome)}">${esc(c.label)}</span>
       </td>
       <td>${c.error ? `<code>${esc(c.error.code)}</code>` : '—'}</td>
       <td style="white-space:normal">${c.error ? esc(c.error.description) : '—'}</td>

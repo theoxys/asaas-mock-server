@@ -6,6 +6,8 @@ import {
   BRAND_RULES,
   CARD_ERRORS,
   CreditCardError,
+  declinesOnCharge,
+  declinesOnTokenize,
   detectBrand,
   inspectCard,
   isExpired,
@@ -13,6 +15,7 @@ import {
   normalizeCardNumber,
   outcomeFor,
   TEST_CARDS,
+  type AuthorizationOutcome,
   type CardBrand,
 } from '../../src/domain/credit-card.ts'
 import { maxInstallmentsForBrand } from '../../src/domain/installments.ts'
@@ -223,12 +226,36 @@ describe('cartões de simulação (extensão nossa, não existe no Asaas)', () =
    */
   it('todo cartão da tabela faz o que a tabela promete', () => {
     for (const c of TEST_CARDS) {
-      if (c.outcome === 'APPROVE' || c.outcome === 'DECLINE') {
-        expect(inspectCard({ number: c.number }, NOW).outcome).toBe(c.outcome)
+      const isAuthOutcome =
+        c.outcome === 'APPROVE' || c.outcome === 'DECLINE' || c.outcome === 'DECLINE_ON_CHARGE'
+
+      if (isAuthOutcome) {
+        // Sobrevive à validação e decide na hora de cobrar. O `isAuthOutcome` já
+        // estreitou o valor; o TS não acompanha através da variável.
+        expect(inspectCard({ number: c.number }, NOW).outcome).toBe(
+          c.outcome as AuthorizationOutcome,
+        )
       } else {
+        // Recusa a requisição na porta.
         expect(() => inspectCard({ number: c.number }, NOW)).toThrow(CreditCardError)
       }
     }
+  })
+
+  /**
+   * A diferença inteira entre os dois DECLINE: um nunca vira token (é o do Asaas
+   * real), o outro vira e recusa depois (é o nosso, para o cenário que o sandbox
+   * não sabe produzir). O erro entregue ao cliente é o mesmo nos dois.
+   */
+  it('DECLINE recusa ao salvar; DECLINE_ON_CHARGE só ao cobrar', () => {
+    expect(declinesOnTokenize('DECLINE')).toBe(true)
+    expect(declinesOnTokenize('DECLINE_ON_CHARGE')).toBe(false)
+
+    expect(declinesOnCharge('DECLINE')).toBe(true)
+    expect(declinesOnCharge('DECLINE_ON_CHARGE')).toBe(true)
+    expect(declinesOnCharge('APPROVE')).toBe(false)
+
+    expect(CARD_ERRORS.DECLINE_ON_CHARGE).toEqual(CARD_ERRORS.DECLINE)
   })
 })
 

@@ -114,7 +114,14 @@ describe('Tokenização', () => {
     expect(row!.simulatedOutcome).toBe('APPROVE')
   })
 
-  it('o cartão de recusa tokeniza normalmente — a recusa é na hora do uso', async () => {
+  /**
+   * A TOKENIZAÇÃO AUTORIZA — capturado do sandbox (tools/probe-tokenization.ts).
+   * Este teste afirmava o contrário ("a recusa é na hora do uso") e o mock
+   * tokenizava qualquer cartão: o app dizia "cartão salvo!" e só quebrava na
+   * primeira cobrança. É exatamente o bug que uma feature de cartão memorizado
+   * não pode ter.
+   */
+  it('o cartão de recusa NÃO tokeniza — a autorização acontece ao salvar', async () => {
     const cus = await customer()
     const res = await h.api.call('credit-card-tokenization', {
       body: {
@@ -125,11 +132,43 @@ describe('Tokenização', () => {
       },
     })
 
-    expect(res.status).toBe(200)
-    expect(res.body.creditCardBrand).toBe('MASTERCARD')
+    expect(res.status).toBe(400)
+    expect(res.body.errors[0]).toEqual(CARD_ERRORS.DECLINE)
+    // E nada ficou no cofre: um cartão que não autoriza não é guardado.
+    expect(await h.app.db.select().from(creditCards)).toHaveLength(0)
+  })
 
-    const [row] = await h.app.db.select().from(creditCards)
-    expect(row!.simulatedOutcome).toBe('DECLINE')
+  /**
+   * O buraco do sandbox que este mock tapa: no Asaas real um cartão salvo SEMPRE
+   * aprova (o ruim nunca vira token), então não há como testar "o cartão do
+   * cliente falhou na renovação" — que é o cenário que de fato quebra a feature.
+   * `4000000000000341` é nosso, e entrega o erro REAL.
+   */
+  it('4000000000000341 tokeniza, e recusa quando o token é cobrado', async () => {
+    const cus = await customer()
+    const tok = await h.api.call('credit-card-tokenization', {
+      body: {
+        customer: cus,
+        creditCard: card('4000000000000341'),
+        creditCardHolderInfo: holderInfo,
+        remoteIp: '116.213.42.53',
+      },
+    })
+    expect(tok.status).toBe(200)
+
+    const res = await h.api.call('create-new-payment-with-credit-card', {
+      body: {
+        customer: cus,
+        billingType: 'CREDIT_CARD',
+        value: 100,
+        dueDate: '2026-01-10',
+        creditCardToken: tok.body.creditCardToken,
+        remoteIp: '116.213.42.53',
+      },
+    })
+
+    expect(res.status).toBe(400)
+    expect(res.body.errors[0]).toEqual(CARD_ERRORS.DECLINE)
   })
 
   /**
@@ -340,13 +379,19 @@ describe('Recusa — 400 e a cobrança não existe', () => {
     })
   }
 
-  it('recusa também quando o cartão vem por token', async () => {
+  /**
+   * O cartão de recusa não chega mais a virar token (a tokenização autoriza), então
+   * "recusar por token" é exercitado pelo cartão de simulação `4000000000000341`,
+   * no bloco de Tokenização. Aqui garantimos só que a recusa por token não deixa
+   * cobrança órfã.
+   */
+  it('recusa por token não cria cobrança', async () => {
     const cus = await customer()
 
     const tok = await h.api.call('credit-card-tokenization', {
       body: {
         customer: cus,
-        creditCard: card(DECLINES),
+        creditCard: card('4000000000000341'), // tokeniza, mas recusa ao cobrar
         creditCardHolderInfo: holderInfo,
         remoteIp: '116.213.42.53',
       },
@@ -366,6 +411,85 @@ describe('Recusa — 400 e a cobrança não existe', () => {
     expect(res.status).toBe(400)
     const list = await h.api.call('list-payments')
     expect(list.body.totalCount).toBe(0)
+    await h.assertLedgerBalances()
+  })
+
+  /**
+   * O TOKEN É PRESO AO CLIENTE — capturado. Usar o token do cliente A para cobrar
+   * o B devolve "não encontrado" (o Asaas nem admite que o token existe). O mock
+   * aceitava, e um app que embaralhasse tokens entre clientes só descobriria em
+   * produção.
+   */
+  it('o token do cliente A NÃO cobra o cliente B', async () => {
+    const cusA = await customer()
+    const tok = await h.api.call('credit-card-tokenization', {
+      body: {
+        customer: cusA,
+        creditCard: card(APPROVES),
+        creditCardHolderInfo: holderInfo,
+        remoteIp: '116.213.42.53',
+      },
+    })
+    const token = tok.body.creditCardToken
+
+    const cusB = (
+      await h.api.call('create-new-customer', {
+        body: { name: 'Outro Cliente', cpfCnpj: '24971563792' },
+      })
+    ).body.id
+
+    const res = await h.api.call('create-new-payment-with-credit-card', {
+      body: {
+        customer: cusB,
+        billingType: 'CREDIT_CARD',
+        value: 100,
+        dueDate: '2026-01-10',
+        creditCardToken: token,
+        remoteIp: '116.213.42.53',
+      },
+    })
+
+    expect(res.status).toBe(400)
+    expect(res.body.errors[0].code).toBe('invalid_creditCard')
+    expect(res.body.errors[0].description).toBe(`CreditCardToken ${token} não encontrado.`)
+  })
+
+  /**
+   * A pegadinha do "revalidar o CVV na recompra": mandar o token JUNTO com um
+   * `creditCard` parcial faz o Asaas exigir o cartão inteiro — e devolver um erro
+   * POR CAMPO. O mock devolvia "Expected union value", um erro interno do
+   * validador vazando para o cliente.
+   */
+  it('token + creditCard parcial → um erro por campo faltante', async () => {
+    const cus = await customer()
+    const tok = await h.api.call('credit-card-tokenization', {
+      body: {
+        customer: cus,
+        creditCard: card(APPROVES),
+        creditCardHolderInfo: holderInfo,
+        remoteIp: '116.213.42.53',
+      },
+    })
+
+    const res = await h.api.call('create-new-payment-with-credit-card', {
+      body: {
+        customer: cus,
+        billingType: 'CREDIT_CARD',
+        value: 100,
+        dueDate: '2026-01-10',
+        creditCardToken: tok.body.creditCardToken,
+        creditCard: { ccv: '318' }, // só o CVV
+        remoteIp: '116.213.42.53',
+      },
+    })
+
+    expect(res.status).toBe(400)
+    expect(res.body.errors.map((e: { description: string }) => e.description)).toEqual([
+      'Informe o nome do portador.',
+      'Informe o número do seu cartão.',
+      'Informe o mês de vencimento do seu cartão.',
+      'Informe o ano de vencimento do seu cartão.',
+    ])
   })
 })
 
@@ -651,7 +775,12 @@ describe('Validações', () => {
     })
 
     expect(res.status).toBe(400)
-    expect(res.body.errors[0].code).toBe('invalid_creditCardToken')
+    // O código é `invalid_creditCard` e a frase CARREGA o token — capturado.
+    // Antes era `invalid_creditCardToken` com uma frase genérica, ambos inventados.
+    expect(res.body.errors[0].code).toBe('invalid_creditCard')
+    expect(res.body.errors[0].description).toBe(
+      `CreditCardToken ${tok.body.creditCardToken} não encontrado.`,
+    )
   })
 
   it('cartão com billingType diferente de CREDIT_CARD → 400', async () => {

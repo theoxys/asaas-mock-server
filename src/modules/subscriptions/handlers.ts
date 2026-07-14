@@ -42,7 +42,7 @@ import type {
 } from '../../db/schema/payments.ts'
 import type { InvoiceTaxesConfig } from '../../db/schema/subscription-invoice-config.ts'
 import { isValidIsoDate, type Cycle } from '../../domain/calendar.ts'
-import { CreditCardError, inspectCard } from '../../domain/credit-card.ts'
+import { CreditCardError, declinesOnCharge, inspectCard } from '../../domain/credit-card.ts'
 import { calcFee, netValue, type BillingType } from '../../domain/fees.ts'
 import * as ids from '../../domain/ids.ts'
 import { brlToCents, cents, centsToBrl } from '../../domain/money.ts'
@@ -175,7 +175,7 @@ async function resolveCreditCard(
     holderName: String(card.holderName ?? ''),
     expiryMonth: String(card.expiryMonth ?? ''),
     expiryYear: String(card.expiryYear ?? ''),
-    simulatedOutcome: info.outcome,
+    simulatedOutcome: declinesOnCharge(info.outcome) ? 'DECLINE' : 'APPROVE',
     holderInfo: b.creditCardHolderInfo ?? null,
     dateCreated: ctx.clock.timestamp(),
   })
